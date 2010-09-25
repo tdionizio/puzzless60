@@ -1,0 +1,57 @@
+
+//  LOCALISATION STRINGS
+
+// Caption string for app.
+#define qtn_caption_string "Puzzles"
+
+#define qtn_menuBack "Back"
+#define qtn_menuClose "Close"
+
+#define qtn_settingsDialogTitle "Game Parameters"
+
+#define qtn_optionYes "yes"
+#define qtn_optionNo "no"
+
+#define qtn_softkey_close "Close"
+#define qtn_softkey_back "Back"
+
+
+// First item in "Options" menu pane
+#define qtn_commandSelectGame "Select Game"
+
+#define qtn_commandGame "Game"
+#define qtn_commandGameType "Type..."
+#define qtn_commandGameNew "New"
+#define qtn_commandGameRestart "Restart"
+#define qtn_commandGameUndo "Undo"
+#define qtn_commandGameRedo "Redo"
+#define qtn_commandGameQuit "Quit"
+#define qtn_commandGameSolve "Solve"
+#define qtn_commandGameClose "Close"
+
+#define qtn_commandOrientation "Screen Orientation"
+#define qtn_commandOrientationAutomatic "Automatic"
+#define qtn_commandOrientationPortrait "Portrait"
+#define qtn_commandOrientationLandscape "Landscape"
+
+#define qtn_commandScreen "Screen Size"
+#define qtn_commandScreenNormal "Normal"
+#define qtn_commandScreenLargeTop "Large Top"
+#define qtn_commandScreenLargeBottom "Large Bottom"
+#define qtn_commandScreenFull "Full"
+
+#define qtn_commandSettings "Settings..."
+#define qtn_commandToggleToolbar "Toggle Toolbar"
+#define qtn_commandDebugRam "Memory Usage"
+
+#define qtn_help "Help"
+#define qtn_helpIntroduction "Introduction"
+#define qtn_helpCommonFeatures "Common"
+#define qtn_helpGame "Game"
+#define qtn_helpOverview "Contents"
+
+#define qtn_exit "Exit"
+
+#define qtn_loc_resource_file_1 "\\resource\\apps\\puzzles_0xa000ef77"
+
+// End of File
