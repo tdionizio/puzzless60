@@ -1,0 +1,101 @@
+; Installation file for Puzzles application
+;
+; This is an auto-generated PKG file by Carbide.
+; This file uses variables specific to Carbide builds that will not work
+; on command-line builds. If you want to use this generated PKG file from the
+; command-line tools you will need to modify the variables with the appropriate
+; values: $(EPOCROOT), $(PLATFORM), $(TARGET)
+;
+;Language - standard language definitions
+&EN
+
+; standard SIS file header
+#{"Puzzles"},(0xA000EF77),1,4,8997
+
+;Localised Vendor name
+%{"Tiago Dionizio-EN"}
+
+;Unique Vendor name
+:"Tiago Dionizio"
+
+;Supports S60 3.0
+; [0x101F7961], 0, 0, 0, {"Series60ProductID"}
+
+;Supports S60 5th Edition
+[0x1028315F], 0, 0, 0, {"Series60ProductID"}
+
+;Supports Symbian^3
+[0x20022E6D], 0, 0, 0, {"Series60ProductID"}
+
+
+;Embedded component
+; IF NOT package(0x20013851)
+; @"pips_s60_1_6_SS.sis",(0x20013851)
+; endif
+
+; dependencies
+(0x20009a80), 1, 0, 0, {"Symbian OS PIPS"}
+
+
+;Files to install
+;You should change the source paths to match that of your environment
+;<source> <destination>
+"$(EPOCROOT)Epoc32\release\$(PLATFORM)\$(TARGET)\Puzzles_0xa000ef77.exe" -"!:\sys\bin\Puzzles_0xa000ef77.exe"
+"$(EPOCROOT)Epoc32\data\z\resource\apps\Puzzles_0xa000ef77.rsc" -"!:\resource\apps\Puzzles_0xa000ef77.rsc"
+"$(EPOCROOT)Epoc32\data\z\private\10003a3f\apps\Puzzles_0xa000ef77_reg.rsc"	-"!:\private\10003a3f\import\apps\Puzzles_0xa000ef77_reg.rsc"
+"$(EPOCROOT)Epoc32\data\z\resource\apps\0xa000ef77\puzzles.mif" -"!:\resource\apps\0xa000ef77\puzzles.mif"
+"$(EPOCROOT)Epoc32\data\z\resource\apps\0xa000ef77\games.mif" -"!:\resource\apps\0xa000ef77\games.mif"
+"$(EPOCROOT)Epoc32\data\z\resource\apps\0xa000ef77\games.mbm" -"!:\resource\apps\0xa000ef77\games.mbm"
+; "..\help\html\Puzzles_0xa000ef77.hlp"							 -"!:\resource\help\Puzzles_0xa000ef77.hlp"
+
+"..\fonts\Vera.ttf" -"!:\resource\apps\0xa000ef77\Vera.ttf"
+; "..\fonts\VeraBd.ttf" -"!:\resource\apps\0xa000ef77\VeraBd.ttf"
+"..\fonts\VeraMono.ttf" -"!:\resource\apps\0xa000ef77\VeraMono.ttf"
+; "..\fonts\VeraMoBd.ttf" -"!:\resource\apps\0xa000ef77\VeraMoBd.ttf"
+
+
+"..\help\html\index.html" - "!:\resource\apps\0xa000ef77\index.html"
+"..\help\html\intro.html" - "!:\resource\apps\0xa000ef77\intro.html"
+"..\help\html\licence.html" - "!:\resource\apps\0xa000ef77\licence.html"
+"..\help\html\common.html" - "!:\resource\apps\0xa000ef77\common.html"
+"..\help\html\docindex.html" - "!:\resource\apps\0xa000ef77\docindex.html"
+
+"..\help\html\blackbox.html" - "!:\resource\apps\0xa000ef77\blackbox.html"
+"..\help\html\bridges.html" - "!:\resource\apps\0xa000ef77\bridges.html"
+"..\help\html\cube.html" - "!:\resource\apps\0xa000ef77\cube.html"
+"..\help\html\dominosa.html" - "!:\resource\apps\0xa000ef77\dominosa.html"
+"..\help\html\fifteen.html" - "!:\resource\apps\0xa000ef77\fifteen.html"
+"..\help\html\filling.html" - "!:\resource\apps\0xa000ef77\filling.html"
+"..\help\html\flip.html" - "!:\resource\apps\0xa000ef77\flip.html"
+"..\help\html\galaxies.html" - "!:\resource\apps\0xa000ef77\galaxies.html"
+"..\help\html\guess.html" - "!:\resource\apps\0xa000ef77\guess.html"
+"..\help\html\inertia.html" - "!:\resource\apps\0xa000ef77\inertia.html"
+"..\help\html\keen.html" - "!:\resource\apps\0xa000ef77\keen.html"
+"..\help\html\lightup.html" - "!:\resource\apps\0xa000ef77\lightup.html"
+"..\help\html\loopy.html" - "!:\resource\apps\0xa000ef77\loopy.html"
+"..\help\html\magnets.html" - "!:\resource\apps\0xa000ef77\magnets.html"
+"..\help\html\map.html" - "!:\resource\apps\0xa000ef77\map.html"
+"..\help\html\mines.html" - "!:\resource\apps\0xa000ef77\mines.html"
+"..\help\html\net.html" - "!:\resource\apps\0xa000ef77\net.html"
+"..\help\html\netslide.html" - "!:\resource\apps\0xa000ef77\netslide.html"
+"..\help\html\pattern.html" - "!:\resource\apps\0xa000ef77\pattern.html"
+"..\help\html\pegs.html" - "!:\resource\apps\0xa000ef77\pegs.html"
+"..\help\html\range.html" - "!:\resource\apps\0xa000ef77\range.html"
+"..\help\html\rectangles.html" - "!:\resource\apps\0xa000ef77\rectangles.html"
+"..\help\html\samegame.html" - "!:\resource\apps\0xa000ef77\samegame.html"
+"..\help\html\signpost.html" - "!:\resource\apps\0xa000ef77\signpost.html"
+"..\help\html\singles.html" - "!:\resource\apps\0xa000ef77\singles.html"
+"..\help\html\sixteen.html" - "!:\resource\apps\0xa000ef77\sixteen.html"
+"..\help\html\slant.html" - "!:\resource\apps\0xa000ef77\slant.html"
+"..\help\html\solo.html" - "!:\resource\apps\0xa000ef77\solo.html"
+"..\help\html\tents.html" - "!:\resource\apps\0xa000ef77\tents.html"
+"..\help\html\towers.html" - "!:\resource\apps\0xa000ef77\towers.html"
+"..\help\html\twiddle.html" - "!:\resource\apps\0xa000ef77\twiddle.html"
+"..\help\html\unequal.html" - "!:\resource\apps\0xa000ef77\unequal.html"
+"..\help\html\untangle.html" - "!:\resource\apps\0xa000ef77\untangle.html"
+
+; Add any installation notes if applicable
+"..\sis\intro.txt" -"", FT, TC
+
+;required for application to be covered by backup/restore facility 
+"..\sis\backup_registration.xml"		-"!:\private\A000EF77\backup_registration.xml"
