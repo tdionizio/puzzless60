@@ -2,4 +2,4 @@ This is a collection of logic puzzle games.
 
 Credits go to Simon Tatham who wrote and maintain the original code.
 
-Visit http://www.chiark.greenend.org.uk/~sgtatham/puzzles/ for help on the games and http://sites.google.com/site/puzzless60/ for updates on the symbian port. 
+Visit http://www.chiark.greenend.org.uk/~sgtatham/puzzles/ for help on the games and http://code.google.com/p/puzzless60/ for updates on the symbian port. 
