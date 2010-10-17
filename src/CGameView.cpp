@@ -221,13 +221,13 @@ void CGameView::DrawText(
 	}
     
     if (align & ALIGN_VCENTRE) {
-        y += iLastFont->AscentInPixels() / 2;
+        y = y + iLastFont->AscentInPixels() / 2 + 1;
     }
     if (align & ALIGN_HCENTRE) {
-        x -= w / 2;
+        x = x - w / 2 + 1;
     }
     if (align & ALIGN_HRIGHT) {
-        x -= w;
+        x = x - w;
     }
     
     iBC->SetPenColor(iGameContainer->MapColour(colour));
