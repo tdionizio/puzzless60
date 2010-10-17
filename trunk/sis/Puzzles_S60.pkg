@@ -10,7 +10,7 @@
 &EN
 
 ; standard SIS file header
-#{"Puzzles"},(0xA000EF77),1,4,8997
+#{"Puzzles"},(0xA000EF77),1,5,9014
 
 ;Localised Vendor name
 %{"Tiago Dionizio-EN"}
@@ -30,7 +30,7 @@
 
 ;Embedded component
 ; IF NOT package(0x20013851)
-; @"pips_s60_1_6_SS.sis",(0x20013851)
+; @"pips_s60_1_7_SS.sis",(0x20013851)
 ; endif
 
 ; dependencies
