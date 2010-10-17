@@ -65,7 +65,7 @@ void CGameView::ConstructL(CGameContainer *aGameContainer) {
     iGameSize.iHeight = 0;
     
     iVirtualScreen = new (ELeave) CFbsBitmap;
-    User::LeaveIfError(iVirtualScreen->Create(TSize(0, 0), EColor64K));
+    User::LeaveIfError(iVirtualScreen->Create(TSize(0, 0), iCoeEnv->ScreenDevice()->DisplayMode()));
     iBitmapDevice = CFbsBitmapDevice::NewL(iVirtualScreen);
     User::LeaveIfError(iBitmapDevice->CreateBitmapContext(iBC));
     
@@ -145,9 +145,11 @@ bool CGameView::SetGameSize(const TSize& aSize) {
 // it will not be called in SDKs without Touch support.
 // -----------------------------------------------------------------------------
 //
+#ifdef ENABLE_TOUCH_UI
 void CGameView::HandlePointerEventL(const TPointerEvent& aPointerEvent) {
     iGameContainer->HandleGamePointerEventL(aPointerEvent, iGamePos);
 }
+#endif
 
 void CGameView::SetupFont(int fonttype, int fontsize) {
     if (iLastFont && (fonttype != iLastFontType || fontsize != iLastFontSize)) {
@@ -252,6 +254,18 @@ void CGameView::DrawLine(int x1, int y1, int x2, int y2, int colour) {
     iBC->SetPenColor(iGameContainer->MapColour(colour));
     iBC->DrawLine(TPoint(x1, y1), TPoint(x2, y2));
 }
+void CGameView::DrawThickLine(float thickness, float x1, float y1, float x2, float y2, int colour) {
+    CHECK2_XY(x1, y1, x2, y2);
+    
+    int thick = (int)((thickness - 1) / 2 + 0.5) * 2 + 1;
+    
+    iBC->SetPenSize(TSize(thick, thick));
+    iBC->SetPenStyle(CGraphicsContext::ESolidPen);
+    iBC->SetPenColor(iGameContainer->MapColour(colour));
+    iBC->DrawLine(TPoint(x1, y1), TPoint(x2, y2));
+    
+    iBC->SetPenSize(TSize(1, 1));
+}
 void CGameView::DrawPolygon(
     int *coords, int npoints, 
     int fillcolour, int outlinecolour
@@ -288,7 +302,7 @@ void CGameView::DrawCircle(
     iBC->SetPenColor(iGameContainer->MapColour(outlinecolour));
     iBC->SetBrushStyle(CGraphicsContext::ESolidBrush);
     iBC->SetBrushColor(iGameContainer->MapColour(fillcolour));
-    iBC->DrawEllipse(TRect(cx - radius, cy - radius, cx + radius, cy + radius));
+    iBC->DrawEllipse(TRect(cx - radius, cy - radius, cx + radius + 1, cy + radius + 1));
 }
 void CGameView::Clip(int x, int y, int w, int h) {
     iBC->SetClippingRect(TRect(TPoint(x, y), TSize(w, h)));
@@ -300,7 +314,7 @@ void CGameView::StartDraw() {
     iBC->SetPenSize(TSize(1, 1));
 }
 void CGameView::DrawUpdate(int /* x */, int /* y */, int /* w */, int /* h */) {
-    //DrawNow(TRect(TPoint(x, y), TSize(w, h)));
+    //DrawNow(TRect(TPoint(x, y) + iGamePos, TSize(w, h)));
 }
 void CGameView::EndDraw() {
     ReleaseFont();
@@ -311,7 +325,7 @@ void CGameView::EndDraw() {
 blitter *CGameView::BlitterNew(int w, int h) {
     blitter *bl = snew(blitter);
     bl->bitmap = new (ELeave) CFbsBitmap;
-    User::LeaveIfError(bl->bitmap->Create(TSize(w, h), EColor64K));
+    User::LeaveIfError(bl->bitmap->Create(TSize(w, h), iVirtualScreen->DisplayMode()));
     bl->bd = CFbsBitmapDevice::NewL(bl->bitmap);
     bl->bd->CreateBitmapContext(bl->gc);
     return bl;
@@ -338,19 +352,30 @@ void CGameView::BlitterLoad(blitter *bl, int x, int y) {
 // Draws the display.
 // -----------------------------------------------------------------------------
 //
-void CGameView::Draw(const TRect& aRect) const {
+void CGameView::Draw(const TRect& /* aRect */) const {
     // Get the standard graphics context
     CWindowGc& gc = SystemGc();
     
-    // Clears the screen
-    gc.Clear(aRect);
-    
     if (iVirtualScreen) {
+        TRect gameRect(TPoint(), iGameSize);
+        
         gc.BitBlt(
             iGamePos,
             iVirtualScreen,
-            TRect(TPoint(), iGameSize)
+            gameRect
         );
+        
+        // draw a rectangle around the board area to make 
+        // the limits visible to the user
+        
+        gc.SetPenSize(TSize(1, 1));
+        gc.SetPenColor(KRgbBlack);
+        gc.SetPenStyle(CGraphicsContext::ESolidPen);
+        gc.SetBrushStyle(CGraphicsContext::ENullBrush);
+        
+        gameRect.Move(iGamePos);
+        gameRect.Grow(1, 1);
+        gc.DrawRect(gameRect);
     }
 }
 

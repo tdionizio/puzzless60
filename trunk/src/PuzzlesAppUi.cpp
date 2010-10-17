@@ -5,15 +5,14 @@
 #include <avkon.hrh>
 #include <eikspane.h>
 
-#include <akncontext.h>
 #include <akntitle.h>
 #include <aknnavi.h>
 #include <aknnavide.h>
 #include <aknnavilabel.h>
-#include <aknmessagequerydialog.h>
-#include <aknnotewrappers.h>
 #include <aknlists.h>
-#include <aknpopup.h>
+#ifdef ENABLE_TOUCH_UI
+#include <aknstyluspopupmenu.h>
+#endif
 
 #include <stringloader.h>
 #include <hlplch.h>
@@ -28,7 +27,6 @@
 
 #include "Puzzles.hrh"
 #include "Puzzles.pan"
-#include "PuzzlesApplication.h"
 #include "PuzzlesAppUi.h"
 #include "PuzzlesAppView.h"
 #include "CGameView.h"
@@ -37,28 +35,6 @@
 
 extern "C" {
 #include "puzzles.h"
-}
-
-void CPuzzlesAppUi::ChangePaneIconL(const TDesC& aIconFile, TInt aIndex, TInt aMask) {
-    CEikStatusPane* sp = StatusPane();
-    if (sp) {
-        CAknContextPane* contextPane = 
-            (CAknContextPane*)sp->ControlL(TUid::Uid(EEikStatusPaneUidContext));
-        if (contextPane) {
-            contextPane->SetPictureFromFileL(aIconFile,aIndex,aMask);  
-        }               
-    }
-}
-
-void CPuzzlesAppUi::ChangePaneIconDefaultL(void) {
-    CEikStatusPane* sp = StatusPane();
-    if (sp) {
-        CAknContextPane* contextPane = (CAknContextPane*)
-            sp->ControlL(TUid::Uid(EEikStatusPaneUidContext));
-        if (contextPane) {
-            contextPane->SetPictureToDefaultL();
-        }
-    }
 }
 
 void CPuzzlesAppUi::ChangePaneTextL(const TDesC& aTitle, const TDesC& aText) {
@@ -93,14 +69,19 @@ void CPuzzlesAppUi::ConstructL() {
     CEikStatusPane* status_pane = StatusPane();
     iTitlePane = (CAknTitlePane *)
         status_pane->ControlL(TUid::Uid(EEikStatusPaneUidTitle));
+#ifdef ENABLE_TOUCH_UI
+    iTitlePane->SetTitlePaneObserver(this);
+#endif
     
     CAknNavigationControlContainer *iNaviPane = (CAknNavigationControlContainer *)
         status_pane->ControlL(TUid::Uid(EEikStatusPaneUidNavi));
     if (iNaviPane) {
         iNaviLabel = iNaviPane->CreateNavigationLabelL();
         iNaviPane->PushL(*iNaviLabel);
+#ifdef ENABLE_TOUCH_UI
+        iNaviLabel->SetNaviDecoratorObserver(this);
+#endif
     }
-    
     
     iScreenMode = iAppConfig.GetScreenMode(
 #ifdef ENABLE_TOUCH_UI
@@ -158,6 +139,11 @@ CPuzzlesAppUi::~CPuzzlesAppUi() {
         RemoveFromStack(iAppView);
         delete iAppView;
     }
+#ifdef ENABLE_TOUCH_UI
+    if (iPopupMenu) {
+        delete iPopupMenu;
+    }
+#endif
 }
 
 void CPuzzlesAppUi::DynInitMenuPaneL(TInt aResourceId, CEikMenuPane* aMenuPane) {
@@ -193,6 +179,33 @@ void CPuzzlesAppUi::DynInitMenuPaneL(TInt aResourceId, CEikMenuPane* aMenuPane) 
     
     iAppView->DynInitMenuPaneL(aResourceId, aMenuPane);
 }
+
+#ifdef ENABLE_TOUCH_UI
+void CPuzzlesAppUi::HandleTitlePaneEventL(TInt aEventID) {
+    if (aEventID == EAknTitlePaneTapped) {
+        iAppView->SwitchLayoutL(CPuzzlesAppView::ELayoutGameList);
+    }
+}
+void CPuzzlesAppUi::HandleNaviDecoratorEventL(TInt aEventID) {
+    if (aEventID == EAknNaviDecoratorEventNaviLabel) {
+        if (!iAppView->GameContainer()->HaveGame()) {
+            return;
+        }
+        
+        if (iPopupMenu != NULL) {
+            delete iPopupMenu;
+        }
+        
+        TInt height = iNaviLabel->Size().iHeight;
+        TPoint topLeft = iNaviLabel->PositionRelativeToScreen();
+        TPoint bottomLeft = topLeft + TPoint(0, height);
+        
+        iPopupMenu = CAknStylusPopUpMenu::NewL(this, bottomLeft);
+        iAppView->GameContainer()->BuildPresetPopupMenu(iPopupMenu);
+        iPopupMenu->ShowMenu();
+    }
+}
+#endif
 
 // -----------------------------------------------------------------------------
 // CPuzzlesAppUi::HandleCommandL()
@@ -269,6 +282,10 @@ void CPuzzlesAppUi::HandleCommandL(TInt aCommand) {
             
         case ECommandOrientationLandscape:
             SetOrientationL(EAppUiOrientationLandscape);
+            break;
+            
+        case KErrCancel:
+            // touch ui: popup menu cancelled!
             break;
             
         default:

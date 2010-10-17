@@ -243,6 +243,14 @@ void CPuzzlesAppView::DynInitMenuPaneL(TInt aResourceId, CEikMenuPane* aMenuPane
 }
 
 void CPuzzlesAppView::SwitchLayoutL(ELayout aLayout) {
+    if ((aLayout == ELayoutGameList && iGameList->IsVisible())
+        || (aLayout == ELayoutHelp && iHelpBr && iHelpBr->IsVisible())
+        || (aLayout == ELayoutGame && iGameContainer->IsVisible())
+        || (aLayout == ELayoutGameParameters && iGameSettings && iGameSettings->IsVisible())
+    ) {
+        return;
+    }
+    
     if (aLayout != ELayoutHelp) {
         FreeHelpBrowser();
     }
@@ -267,8 +275,20 @@ void CPuzzlesAppView::SwitchLayoutL(ELayout aLayout) {
             iAppUi->Cba()->SetCommandSetL(R_AVKON_SOFTKEYS_OPTIONS_EXIT);
             break;
         case ELayoutGameList:
+            if (iGameContainer && iGameContainer->GetGame() != NULL) {
+                const game *currentGame = iGameContainer->GetGame();
+                for (TInt i = 0; i < gamecount; ++i) {
+                    if (currentGame == gamelist[i]) {
+                        iGameList->SetCurrentItemIndex(i);
+                    }
+                }
+            }
+            
             iGameList->MakeVisible(ETrue);
-            iGameList->ScrollBarFrame()->SetScrollBarVisibilityL(CEikScrollBarFrame::EOff, CEikScrollBarFrame::EAuto);
+            iGameList->ScrollBarFrame()->SetScrollBarVisibilityL(
+                CEikScrollBarFrame::EOff, 
+                CEikScrollBarFrame::EAuto
+            );
             iGameList->UpdateScrollBarsL();
             if (iGameContainer->HaveGame()) {
                 iAppUi->Cba()->SetCommandSetL(R_AVKON_SOFTKEYS_OPTIONS_BACK);

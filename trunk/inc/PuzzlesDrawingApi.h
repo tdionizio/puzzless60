@@ -19,6 +19,8 @@ private:
     static void DrawAPI_DrawRect(void *handle, int x, int y, int w, int h, int colour);
     static void DrawAPI_DrawLine(void *handle, int x1, int y1, int x2, int y2,
         int colour);
+    static void DrawAPI_DrawThickLine(void *handle, float thickness, float x1, 
+        float y1, float x2, float y2, int colour);
     static void DrawAPI_DrawPolygon(void *handle, int *coords, int npoints,
         int fillcolour, int outlinecolour);
     static void DrawAPI_DrawCircle(void *handle, int cx, int cy, int radius,

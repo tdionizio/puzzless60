@@ -8,6 +8,7 @@
 #include <eiklabel.h>
 #ifdef ENABLE_TOUCH_UI
 #include <aknbutton.h>
+#include <aknstyluspopupmenu.h>
 #endif
 
 #include <string.h>
@@ -78,6 +79,8 @@ void CGameContainer::ConstructL(const CCoeControl &aParent, CPuzzlesAppUi *aAppU
     
 #ifdef ENABLE_TOUCH_UI
     iStylusMode = EStylusLeft;
+    iTap = ETapNone;
+    iTapTimer = CPeriodic::NewL(0);
 #endif
     
     // Create view object
@@ -165,15 +168,28 @@ CGameContainer::~CGameContainer() {
         delete iTimer;
         iTimer = NULL;
     }
+#ifdef ENABLE_TOUCH_UI
+    if (iTapTimer) {
+        delete iTapTimer;
+        iTapTimer = NULL;
+    }
+#endif
 }
 
 void CGameContainer::Draw(const TRect& aRect) const {
     // Get the standard graphics context
     CWindowGc& gc = SystemGc();
+    float bg[3];
+    frontend_default_colour(NULL, bg);
     
+    gc.SetPenStyle(CGraphicsContext::ENullPen);
     gc.SetBrushStyle(CGraphicsContext::ESolidBrush);
-    gc.SetBrushColor(KRgbWhite);
-    gc.Clear(aRect);
+    gc.SetBrushColor(TRgb(
+        (TInt)(255 * bg[0]),
+        (TInt)(255 * bg[1]),
+        (TInt)(255 * bg[2])
+    ));
+    gc.DrawRect(aRect);
 }
 // -----------------------------------------------------------------------------
 // CGameContainer::SizeChanged()
@@ -307,8 +323,8 @@ void CGameContainer::UpdateStatusVisibility() {
     }
 }
 
-void CGameContainer::ToggleStylusMode() {
 #ifdef ENABLE_TOUCH_UI
+void CGameContainer::ToggleStylusMode() {
     TBuf<1> state;
     state.SetLength(1);
     
@@ -321,8 +337,9 @@ void CGameContainer::ToggleStylusMode() {
     }
     
     iButtons[EButtonStylus]->State()->SetTextL(state);
-#endif
+    iButtons[EButtonStylus]->DrawDeferred();
 }
+#endif
 
 void CGameContainer::SetStatusText(const TDesC &aText) {
     iStatusView->SetTextL(aText);
@@ -330,7 +347,10 @@ void CGameContainer::SetStatusText(const TDesC &aText) {
 }
 
 void CGameContainer::HandleControlEventL(CCoeControl* aControl, TCoeEvent aEventType) {
-#ifdef ENABLE_TOUCH_UI
+#ifndef ENABLE_TOUCH_UI
+    (void)aControl;
+    (void)aEventType;
+#else
     TUint key;
     
     if (aEventType != EEventStateChanged) {
@@ -382,6 +402,46 @@ void CGameContainer::HandleControlEventL(CCoeControl* aControl, TCoeEvent aEvent
     OfferKeyEventL(event, EEventKey);
 #endif
 }
+
+#ifdef ENABLE_TOUCH_UI
+void CGameContainer::BuildPresetPopupMenu(CAknStylusPopUpMenu *aPopupMenu) {
+    int i;
+    int n = midend_num_presets(iME);
+    int which = midend_which_preset(iME);
+    
+    _LIT(KSelBegin, "[");
+    _LIT(KSelEnd, "]");
+    _LIT(KCustom, "Custom...");
+    TBuf<40> name;
+    
+    for (i = 0; i < n; ++i) {
+        char *cname;
+        game_params *params;
+        midend_fetch_preset(iME, i, &cname, &params);
+        
+        TPtrC8 name8((TUint8*)cname);
+        name.Copy(name8);
+        
+        if (i == which) {
+            name.Insert(0, KSelBegin);
+            name.Append(KSelEnd);
+        }
+        
+        aPopupMenu->AddMenuItemL(name, ECommandGameTypePreset + i);
+    }
+    
+    if (iGame->can_configure) {
+        name.Copy(KCustom);
+        
+        if (which == -1) {
+            name.Insert(0, KSelBegin);
+            name.Append(KSelEnd);
+        }
+        
+        aPopupMenu->AddMenuItemL(name, ECommandGameTypeCustom);
+    }
+}
+#endif
 
 void CGameContainer::DynInitMenuPaneL(TInt aResourceId, CEikMenuPane* aMenuPane) {
     if (aResourceId == R_MENU) {
@@ -442,42 +502,94 @@ void CGameContainer::DynInitMenuPaneL(TInt aResourceId, CEikMenuPane* aMenuPane)
     }
 }
 
+#ifdef ENABLE_TOUCH_UI
+void CGameContainer::ProcessTap(TInt aButton, const TPoint &aScreenLocation, const TPoint &aGamePos) {
+    midend_process_key(
+        iME,
+        aScreenLocation.iX - aGamePos.iX,
+        aScreenLocation.iY - aGamePos.iY,
+        aButton
+    );
+}
+
+TInt CGameContainer::LongTapTick(TAny *aObject) {
+    CGameContainer *self = (CGameContainer*)aObject;
+    self->iTapTimer->Cancel();
+    self->ToggleStylusMode();
+    self->iTap = ETapLong;
+    return 1;
+}
+
 void CGameContainer::HandleGamePointerEventL(
     const TPointerEvent &aPointerEvent,
     const TPoint &aGamePos
 ) {
-#ifdef ENABLE_TOUCH_UI
     if (!iME) {
         return;
     }
     
-    int btn = 0;
+    int btn;
     
     switch (aPointerEvent.iType) {
         case TPointerEvent::EButton1Down:
-            btn = (iStylusMode == EStylusLeft ? LEFT_BUTTON : RIGHT_BUTTON);
+            iTap = ETapWait;
+            iFirstTapPosition = aPointerEvent.iPosition;
+            
+            iTapTimer->Cancel();
+            iTapTimer->Start(500000, 500000, TCallBack(LongTapTick, this));
             break;
             
         case TPointerEvent::EDrag:
-            btn = (iStylusMode == EStylusLeft ? LEFT_DRAG : RIGHT_DRAG);
+            TBool canDrag = iTap == ETapDrag;
+            
+            if (!canDrag) {
+                if (iTap == ETapWait) {
+                    TInt x = iFirstTapPosition.iX - aPointerEvent.iPosition.iX;
+                    TInt y = iFirstTapPosition.iY - aPointerEvent.iPosition.iY;
+                    
+                    if (Abs(x) + Abs(y) > 5) {
+                        canDrag = ETrue;
+                    }
+                }
+            }
+            
+            if (canDrag) {
+                if (iTap == ETapWait) {
+                    iTapTimer->Cancel();
+                    
+                    btn = (iStylusMode == EStylusLeft ? LEFT_BUTTON : RIGHT_BUTTON);
+                    ProcessTap(btn, iFirstTapPosition, aGamePos);
+                    iTap = ETapDrag;
+                }
+                
+                if (iTap == ETapDrag) {
+                    btn = (iStylusMode == EStylusLeft ? LEFT_DRAG : RIGHT_DRAG);
+                    ProcessTap(btn, aPointerEvent.iPosition, aGamePos);
+                }
+            }
             break;
             
         case TPointerEvent::EButton1Up:
-            btn = (iStylusMode == EStylusLeft ? LEFT_RELEASE : RIGHT_RELEASE);
+            if (iTap != ETapLong) {
+                if (iTap == ETapWait) {
+                    iTapTimer->Cancel();
+                    
+                    btn = (iStylusMode == EStylusLeft ? LEFT_BUTTON : RIGHT_BUTTON);
+                    ProcessTap(btn, iFirstTapPosition, aGamePos);
+                }
+                
+                btn = (iStylusMode == EStylusLeft ? LEFT_RELEASE : RIGHT_RELEASE);
+                ProcessTap(btn, aPointerEvent.iPosition, aGamePos);
+            }
+            
+            iTap = ETapNone;
             break;
             
         default:
-            return;
+            break;
     }
-
-    midend_process_key(
-        iME,
-        aPointerEvent.iPosition.iX - aGamePos.iX,
-        aPointerEvent.iPosition.iY - aGamePos.iY,
-        btn
-    );
-#endif
 }
+#endif
 
 TKeyResponse CGameContainer::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCode aType) {
     if (iME == NULL) {
@@ -577,15 +689,6 @@ void CGameContainer::UpdateGameTitle() {
     title.Copy(TPtrC8((TUint8 *)iGame->name, game_name_len));
     preset.Copy(TPtrC8((TUint8 *)cpreset_name, preset_name_len));
     iAppUi->ChangePaneTextL(title, preset);
-    
-    // TODO! get better images (88x88 on 352x416 display)
-#if 0
-    for (int i = 0; i < gamecount; ++i) {
-        if (iGame == gamelist[i]) {
-            iAppUi->ChangePaneIconL(KMBM, i, -1);
-        }
-    }
-#endif
 }
 
 void CGameContainer::SetGame(const game *aGame) {
@@ -686,6 +789,9 @@ config_item *CGameContainer::GetGameConfig() {
 void CGameContainer::ResizeGame(TBool aForceRedraw) {
     if (iME && iGameStarted) {
         TSize gameSize = iGameView->Size();
+        
+        // adjust to include a border around the game
+        gameSize -= TSize(2, 2);
         
         midend_size(iME, &gameSize.iWidth, &gameSize.iHeight, 1);
         if (iGameView->SetGameSize(gameSize) || aForceRedraw) {

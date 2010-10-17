@@ -17,6 +17,10 @@ void CPuzzlesDrawingApi::DrawAPI_DrawRect(void *handle, int x, int y, int w, int
 void CPuzzlesDrawingApi::DrawAPI_DrawLine(void *handle, int x1, int y1, int x2, int y2, int colour) {
     ((CGameView*) handle)->DrawLine(x1, y1, x2, y2, colour);
 }
+void CPuzzlesDrawingApi::DrawAPI_DrawThickLine(void *handle, float thickness, float x1, 
+    float y1, float x2, float y2, int colour) {
+    ((CGameView*) handle)->DrawThickLine(thickness, x1, y1, x2, y2, colour);
+}
 void CPuzzlesDrawingApi::DrawAPI_DrawPolygon(void *handle, int *coords, int npoints,
     int fillcolour, int outlinecolour) {
     ((CGameView*) handle)->DrawPolygon(
@@ -78,6 +82,18 @@ const drawing_api *CPuzzlesDrawingApi::Api() {
         DrawAPI_BlitterFree,
         DrawAPI_BlitterSave,
         DrawAPI_BlitterLoad,
+        
+        NULL, // begin_doc
+        NULL, // begin_page
+        NULL, // begin_puzzle
+        NULL, // end_puzzle
+        NULL, // end_page
+        NULL, // end_doc
+        NULL, // line_width
+        NULL, // line_dotted
+        NULL, // text_fallback
+        
+        DrawAPI_DrawThickLine,
     };
     return &drawing_api;
 }
