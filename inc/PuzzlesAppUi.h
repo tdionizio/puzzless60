@@ -6,6 +6,10 @@
 #include "PuzzlesConfig.h"
 #include "CAppConfig.h"
 #include <aknappui.h>
+#ifdef ENABLE_TOUCH_UI
+#include <akntitlepaneobserver.h>
+#include <aknnavidecoratorobserver.h>
+#endif
 
 // FORWARD DECLARATIONS
 class TTime;
@@ -16,6 +20,9 @@ class CGameContainer;
 class CPeriodic;
 class CAknTitlePane;
 class CAknNavigationDecorator;
+#ifdef ENABLE_TOUCH_UI
+class CAknStylusPopUpMenu;
+#endif
 
 typedef struct midend midend;
 typedef struct game game;
@@ -30,29 +37,36 @@ typedef struct config_item config_item;
  * Interacts with the user through the UI and request message processing
  * from the handler class
  */
-class CPuzzlesAppUi: public CAknAppUi {
-    friend class CPuzzlesAppView;
+class CPuzzlesAppUi: public CAknAppUi
+#ifdef ENABLE_TOUCH_UI
+    , public MAknTitlePaneObserver
+    , public MAknNaviDecoratorObserver
+#endif
+{
 public:
-    // Constructors and destructor
-
     void ConstructL();
     CPuzzlesAppUi();
     virtual ~CPuzzlesAppUi();
 
-private:
-    // Functions from base classes
+public:
     void DynInitMenuPaneL(TInt aResourceId, CEikMenuPane* aMenuPane);
     void HandleCommandL(TInt aCommand);
     void HandleStatusPaneSizeChange();
+#ifdef ENABLE_TOUCH_UI
+    void HandleTitlePaneEventL(TInt aEventID);
+    void HandleNaviDecoratorEventL(TInt aEventID);
+#endif
     
 private:
     CAppConfig iAppConfig;
+    CPuzzlesAppView *iAppView;
     
     TInt iScreenMode;
     CAknTitlePane *iTitlePane;
     CAknNavigationDecorator *iNaviLabel;
-    
-    CPuzzlesAppView *iAppView;
+#ifdef ENABLE_TOUCH_UI
+    CAknStylusPopUpMenu* iPopupMenu;
+#endif
     
     TRect GetGameRect();
     
@@ -73,14 +87,12 @@ public:
     void SetScreenMode(TInt aScreenMode);
     
     void ChangePaneTextL(const TDesC& aTitle, const TDesC& aText);
-    void ChangePaneIconL(const TDesC& aIconFile, TInt aIndex, TInt aMask);
-    void ChangePaneIconDefaultL();
     
     // Returns the platform version in hexadecimal form:
     // 0x0901, 0x0902, etc...
+    // Used for help browser: incompatible placement of top left position
+    // from version 0x901 and 0x0902+
     TUint GetPlatformVersionL();
-    
-private: // drawing API
 };
 
 #endif // __PUZZLESAPPUI_h__

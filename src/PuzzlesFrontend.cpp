@@ -18,9 +18,9 @@ extern "C" {
 void frontend_default_colour(frontend *fe, float *output) {
     (void)fe;
     
-    output[0] = 1.0;
-    output[1] = 1.0;
-    output[2] = 1.0;
+    output[0] = 250. / 255;
+    output[1] = 250. / 255;
+    output[2] = 250. / 255;
 }
 
 void activate_timer(frontend *fe) {

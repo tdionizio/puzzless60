@@ -15,9 +15,10 @@ class CAknSingleLargeStyleListBox;
 class CBrCtlInterface;
 
 // CLASS DECLARATION
-class CPuzzlesAppView: public CCoeControl, public MEikListBoxObserver, MCoeControlObserver {
-    friend class CPuzzlesAppUi;
-    
+class CPuzzlesAppView: public CCoeControl,
+    public MEikListBoxObserver,
+    public MCoeControlObserver
+{
 public:
     // New methods
     static CPuzzlesAppView* NewL(const TRect& aRect, CPuzzlesAppUi *aAppUi);
@@ -54,8 +55,7 @@ public: // new methods
     
     CGameContainer* GameContainer() { return iGameContainer; }
     
-private:
-    
+public:
     enum ELayout {
         ELayoutGame,
         ELayoutGameList,
@@ -63,6 +63,11 @@ private:
         ELayoutHelp
     };
     
+    void SelectGame();
+    void SwitchLayoutL(ELayout aLayout);
+    TBool ShowHelp(const char *topic);
+    
+private:
     CPuzzlesAppUi *iAppUi;
     CEikColumnListBox *iGameList;
     CGameContainer *iGameContainer;
@@ -84,10 +89,6 @@ private:
     TInt iConfigLen;
     TConfigValue *iConfigValues;
     CAknSettingItemList* iGameSettings;
-
-    void SelectGame();
-    void SwitchLayoutL(ELayout aLayout);
-    TBool ShowHelp(const char *topic);
 };
 
 #endif // __PUZZLESAPPVIEW_h__

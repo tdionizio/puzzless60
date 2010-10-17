@@ -11,6 +11,9 @@ class CGameView;
 class CEikLabel;
 class CAknButton;
 class CEikMenuPane;
+#ifdef ENABLE_TOUCH_UI
+class CAknStylusPopUpMenu;
+#endif
 
 typedef struct game game;
 typedef struct game_params game_params;
@@ -69,6 +72,20 @@ private:
     } TStylusMode;
     
     TInt iStylusMode;
+    
+    typedef enum {
+        ETapNone,
+        ETapWait,
+        ETapDrag,
+        ETapLong,
+    } TTapState;
+    
+    TTapState iTap;
+    TBool iLongTap;
+    CPeriodic* iTapTimer;
+    TPoint iFirstTapPosition;
+    
+    static TInt LongTapTick(TAny *aObject);
 #endif
     
     CPuzzlesAppUi *iAppUi;
@@ -104,6 +121,8 @@ public: // new methods
     void SetGamePreset(TInt aPresetIndex);
     char *SetGameConfig(config_item *aConfig);
     config_item *GetGameConfig();
+    TRgb MapColour(TInt aColourIndex) { return iColourMap[aColourIndex]; }
+    
     
     void RestartGame();
     void UndoMove();
@@ -116,14 +135,17 @@ public: // new methods
     TBool ToolbarVisible();
     TBool StatusViewVisible();
     
-    void ToggleStylusMode();
     void SetStatusText(const TDesC &aText);
-    
-    TRgb MapColour(TInt aColourIndex) { return iColourMap[aColourIndex]; }
     
     void DynInitMenuPaneL(TInt aResourceId, CEikMenuPane* aMenuPane);
     TKeyResponse OfferKeyEventL(const TKeyEvent &aKeyEvent, TEventCode aType);
     void HandleGamePointerEventL(const TPointerEvent &aPointerEvent, const TPoint &aGamePos);
+    
+#ifdef ENABLE_TOUCH_UI
+    void ToggleStylusMode();
+    void BuildPresetPopupMenu(CAknStylusPopUpMenu *aPopupMenu);
+    void ProcessTap(TInt aButton, const TPoint &aScreenLocation, const TPoint &aGamePos);
+#endif
     
     void StartTimer();
     void EndTimer();
