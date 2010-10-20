@@ -93,7 +93,7 @@ const drawing_api *CPuzzlesDrawingApi::Api() {
         NULL, // line_dotted
         NULL, // text_fallback
         
-        DrawAPI_DrawThickLine,
+        NULL, // DrawAPI_DrawThickLine,
     };
     return &drawing_api;
 }
