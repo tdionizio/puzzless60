@@ -536,7 +536,7 @@ void CGameContainer::HandleGamePointerEventL(
             iFirstTapPosition = aPointerEvent.iPosition;
             
             iTapTimer->Cancel();
-            iTapTimer->Start(500000, 500000, TCallBack(LongTapTick, this));
+            iTapTimer->Start(250000, 250000, TCallBack(LongTapTick, this));
             break;
             
         case TPointerEvent::EDrag:
