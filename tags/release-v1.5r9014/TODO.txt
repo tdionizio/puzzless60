@@ -1,0 +1,16 @@
+
+* Progress dialog (without time limit) for game generation. Option to 
+  terminate app if taking to long (cannot control game generation code/
+  logic).
+    - use thread to create new midend and generate a game with the given
+      configuration
+    - save the game after generation and pass it back to the main thread
+    - terminate thread if canceled.
+
+* Manual save/load
+* Save custom game types
+    - save name + options
+    - list them in the type menu
+    - game settings dialog
+        - edit name
+        - save/delete type
