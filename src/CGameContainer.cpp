@@ -630,8 +630,24 @@ TKeyResponse CGameContainer::OfferKeyEventL(const TKeyEvent& aKeyEvent, TEventCo
         case '#': key = '\x12'; break;
         
         default:
-            if ((code >= '0' && code <= '9')
-                || (code >= 'a' && code <= 'z')
+            if (code >= '0' && code <= '9') {
+                if ((iGame->flags & REQUIRE_NUMPAD) != 0) {
+                    key = (int)code;
+                } else {
+                    // phone layout shows numbers on a different order!
+                    // translate them
+                    if (code >= '1' && code <= '3') {
+                        key = (code + 6) | MOD_NUM_KEYPAD;
+                    }
+                    else if (code >= '7' && code <= '9') {
+                        key = (code - 6) | MOD_NUM_KEYPAD;
+                    }
+                    else {
+                        key = code | MOD_NUM_KEYPAD;
+                    }
+                }
+            }
+            else if ((code >= 'a' && code <= 'z')
                 || (code >= 'A' && code <= 'Z')) {
                 
                 key = (int)code;
