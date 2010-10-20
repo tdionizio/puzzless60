@@ -221,10 +221,10 @@ void CGameView::DrawText(
 	}
     
     if (align & ALIGN_VCENTRE) {
-        y = y + iLastFont->AscentInPixels() / 2 + 1;
+        y = y + iLastFont->AscentInPixels() / 2;
     }
     if (align & ALIGN_HCENTRE) {
-        x = x - w / 2 + 1;
+        x = x - w / 2;
     }
     if (align & ALIGN_HRIGHT) {
         x = x - w;
