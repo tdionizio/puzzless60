@@ -57,11 +57,6 @@ typedef struct grid {
   int num_edges; grid_edge *edges;
   int num_dots;  grid_dot *dots;
 
-  /* Should be a face roughly near the middle of the grid.
-   * Used to seed path-generation, and also for nearest-edge
-   * detection. */
-  grid_face *middle_face;
-
   /* Cache the bounding-box of the grid, so the drawing-code can quickly
    * figure out the proper scaling to draw onto a given area. */
   int lowest_x, lowest_y, highest_x, highest_y;
@@ -86,6 +81,9 @@ grid *grid_new_cairo(int width, int height);
 grid *grid_new_greathexagonal(int width, int height);
 grid *grid_new_octagonal(int width, int height);
 grid *grid_new_kites(int width, int height);
+grid *grid_new_floret(int width, int height);
+grid *grid_new_dodecagonal(int width, int height);
+grid *grid_new_greatdodecagonal(int width, int height);
 
 void grid_free(grid *g);
 
