@@ -57,7 +57,6 @@ static grid *grid_new(void)
     g->edges = NULL;
     g->dots = NULL;
     g->num_faces = g->num_edges = g->num_dots = 0;
-    g->middle_face = NULL;
     g->refcount = 1;
     g->lowest_x = g->lowest_y = g->highest_x = g->highest_y = 0;
     return g;
@@ -92,17 +91,9 @@ static double point_line_distance(long px, long py,
  * Returns the nearest edge, or NULL if no edge is reasonably
  * near the position.
  *
- * This algorithm is nice and generic, and doesn't depend on any particular
- * geometric layout of the grid:
- *   Start at any dot (pick one next to middle_face).
- *   Walk along a path by choosing, from all nearby dots, the one that is
- *   nearest the target (x,y).  Hopefully end up at the dot which is closest
- *   to (x,y).  Should work, as long as faces aren't too badly shaped.
- *   Then examine each edge around this dot, and pick whichever one is
- *   closest (perpendicular distance) to (x,y).
- *   Using perpendicular distance is not quite right - the edge might be
- *   "off to one side".  So we insist that the triangle with (x,y) has
- *   acute angles at the edge's dots.
+ * Just judging edges by perpendicular distance is not quite right -
+ * the edge might be "off to one side". So we insist that the triangle
+ * with (x,y) has acute angles at the edge's dots.
  *
  *     edge1
  *  *---------*------
@@ -116,52 +107,14 @@ static double point_line_distance(long px, long py,
  */
 grid_edge *grid_nearest_edge(grid *g, int x, int y)
 {
-    grid_dot *cur;
     grid_edge *best_edge;
     double best_distance = 0;
     int i;
 
-    cur = g->middle_face->dots[0];
-
-    for (;;) {
-        /* Target to beat */
-        long dist = SQ((long)cur->x - (long)x) + SQ((long)cur->y - (long)y);
-        /* Look for nearer dot - if found, store in 'new'. */
-        grid_dot *new = cur;
-        int i;
-        /* Search all dots in all faces touching this dot.  Some shapes
-         * (such as in Cairo) don't quite work properly if we only search
-         * the dot's immediate neighbours. */
-        for (i = 0; i < cur->order; i++) {
-            grid_face *f = cur->faces[i];
-            int j;
-            if (!f) continue;
-            for (j = 0; j < f->order; j++) {
-		long new_dist;
-                grid_dot *d = f->dots[j];
-                if (d == cur) continue;
-                new_dist = SQ((long)d->x - (long)x) + SQ((long)d->y - (long)y);
-                if (new_dist < dist) {
-                    new = d;
-                    break; /* found closer dot */
-                }
-            }
-            if (new != cur)
-                break; /* found closer dot */
-        }
-
-        if (new == cur) {
-            /* Didn't find a closer dot among the neighbours of 'cur' */
-            break;
-        } else {
-            cur = new;
-        }
-    }
-    /* 'cur' is nearest dot, so find which of the dot's edges is closest. */
     best_edge = NULL;
 
-    for (i = 0; i < cur->order; i++) {
-        grid_edge *e = cur->edges[i];
+    for (i = 0; i < g->num_edges; i++) {
+        grid_edge *e = &g->edges[i];
         long e2; /* squared length of edge */
         long a2, b2; /* squared lengths of other sides */
         double dist;
@@ -224,7 +177,6 @@ static void grid_print_basic(grid *g)
         }
         printf("]\n");
     }
-    printf("Middle face: %d\n", (int)(g->middle_face - g->faces));
 }
 /* Show the derived grid information, computed by grid_make_consistent */
 static void grid_print_derived(grid *g)
@@ -726,7 +678,6 @@ grid *grid_new_square(int width, int height)
     freetree234(points);
     assert(g->num_faces <= max_faces);
     assert(g->num_dots <= max_dots);
-    g->middle_face = g->faces + (height/2) * width + (width/2);
 
     grid_make_consistent(g);
     return g;
@@ -781,7 +732,6 @@ grid *grid_new_honeycomb(int width, int height)
     freetree234(points);
     assert(g->num_faces <= max_faces);
     assert(g->num_dots <= max_dots);
-    g->middle_face = g->faces + (height/2) * width + (width/2);
 
     grid_make_consistent(g);
     return g;
@@ -859,10 +809,6 @@ grid *grid_new_triangular(int width, int height)
             index += 2;
         }
     }
-
-    /* "+ width" takes us to the middle of the row, because each row has
-     * (2*width) faces. */
-    g->middle_face = g->faces + (height / 2) * 2 * width + width;
 
     grid_make_consistent(g);
     return g;
@@ -962,7 +908,6 @@ grid *grid_new_snubsquare(int width, int height)
     freetree234(points);
     assert(g->num_faces <= max_faces);
     assert(g->num_dots <= max_dots);
-    g->middle_face = g->faces + (height/2) * width + (width/2);
 
     grid_make_consistent(g);
     return g;
@@ -1055,7 +1000,6 @@ grid *grid_new_cairo(int width, int height)
     freetree234(points);
     assert(g->num_faces <= max_faces);
     assert(g->num_dots <= max_dots);
-    g->middle_face = g->faces + (height/2) * width + (width/2);
 
     grid_make_consistent(g);
     return g;
@@ -1171,7 +1115,6 @@ grid *grid_new_greathexagonal(int width, int height)
     freetree234(points);
     assert(g->num_faces <= max_faces);
     assert(g->num_dots <= max_dots);
-    g->middle_face = g->faces + (height/2) * width + (width/2);
 
     grid_make_consistent(g);
     return g;
@@ -1240,7 +1183,6 @@ grid *grid_new_octagonal(int width, int height)
     freetree234(points);
     assert(g->num_faces <= max_faces);
     assert(g->num_dots <= max_dots);
-    g->middle_face = g->faces + (height/2) * width + (width/2);
 
     grid_make_consistent(g);
     return g;
@@ -1346,7 +1288,267 @@ grid *grid_new_kites(int width, int height)
     freetree234(points);
     assert(g->num_faces <= max_faces);
     assert(g->num_dots <= max_dots);
-    g->middle_face = g->faces + 6 * ((height/2) * width + (width/2));
+
+    grid_make_consistent(g);
+    return g;
+}
+
+grid *grid_new_floret(int width, int height)
+{
+    int x, y;
+    /* Vectors for sides; weird numbers needed to keep puzzle aligned with window
+     * -py/px is close to tan(30 - atan(sqrt(3)/9))
+     * using py=26 makes everything lean to the left, rather than right
+     */
+    int px = 75, py = -26;       /* |( 75, -26)| = 79.43 */
+    int qx = 4*px/5, qy = -py*2; /* |( 60,  52)| = 79.40 */
+    int rx = qx-px, ry = qy-py;  /* |(-15,  78)| = 79.38 */
+
+    /* Upper bounds - don't have to be exact */
+    int max_faces = 6 * width * height;
+    int max_dots = 9 * (width + 1) * (height + 1);
+    
+    tree234 *points;
+
+    grid *g = grid_new();
+    g->tilesize = 2 * px;
+    g->faces = snewn(max_faces, grid_face);
+    g->dots = snewn(max_dots, grid_dot);
+
+    points = newtree234(grid_point_cmp_fn);
+
+    /* generate pentagonal faces */
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            grid_dot *d;
+            /* face centre */
+            int cx = (6*px+3*qx)/2 * x;
+            int cy = (4*py-5*qy) * y;
+            if (x % 2)
+                cy -= (4*py-5*qy)/2;
+            else if (y && y == height-1)
+                continue; /* make better looking grids?  try 3x3 for instance */
+
+            grid_face_add_new(g, 5);
+            d = grid_get_dot(g, points, cx        , cy        ); grid_face_set_dot(g, d, 0);
+            d = grid_get_dot(g, points, cx+2*rx   , cy+2*ry   ); grid_face_set_dot(g, d, 1);
+            d = grid_get_dot(g, points, cx+2*rx+qx, cy+2*ry+qy); grid_face_set_dot(g, d, 2);
+            d = grid_get_dot(g, points, cx+2*qx+rx, cy+2*qy+ry); grid_face_set_dot(g, d, 3);
+            d = grid_get_dot(g, points, cx+2*qx   , cy+2*qy   ); grid_face_set_dot(g, d, 4);
+
+            grid_face_add_new(g, 5);
+            d = grid_get_dot(g, points, cx        , cy        ); grid_face_set_dot(g, d, 0);
+            d = grid_get_dot(g, points, cx+2*qx   , cy+2*qy   ); grid_face_set_dot(g, d, 1);
+            d = grid_get_dot(g, points, cx+2*qx+px, cy+2*qy+py); grid_face_set_dot(g, d, 2);
+            d = grid_get_dot(g, points, cx+2*px+qx, cy+2*py+qy); grid_face_set_dot(g, d, 3);
+            d = grid_get_dot(g, points, cx+2*px   , cy+2*py   ); grid_face_set_dot(g, d, 4);
+
+            grid_face_add_new(g, 5);
+            d = grid_get_dot(g, points, cx        , cy        ); grid_face_set_dot(g, d, 0);
+            d = grid_get_dot(g, points, cx+2*px   , cy+2*py   ); grid_face_set_dot(g, d, 1);
+            d = grid_get_dot(g, points, cx+2*px-rx, cy+2*py-ry); grid_face_set_dot(g, d, 2);
+            d = grid_get_dot(g, points, cx-2*rx+px, cy-2*ry+py); grid_face_set_dot(g, d, 3);
+            d = grid_get_dot(g, points, cx-2*rx   , cy-2*ry   ); grid_face_set_dot(g, d, 4);
+
+            grid_face_add_new(g, 5);
+            d = grid_get_dot(g, points, cx        , cy        ); grid_face_set_dot(g, d, 0);
+            d = grid_get_dot(g, points, cx-2*rx   , cy-2*ry   ); grid_face_set_dot(g, d, 1);
+            d = grid_get_dot(g, points, cx-2*rx-qx, cy-2*ry-qy); grid_face_set_dot(g, d, 2);
+            d = grid_get_dot(g, points, cx-2*qx-rx, cy-2*qy-ry); grid_face_set_dot(g, d, 3);
+            d = grid_get_dot(g, points, cx-2*qx   , cy-2*qy   ); grid_face_set_dot(g, d, 4);
+
+            grid_face_add_new(g, 5);
+            d = grid_get_dot(g, points, cx        , cy        ); grid_face_set_dot(g, d, 0);
+            d = grid_get_dot(g, points, cx-2*qx   , cy-2*qy   ); grid_face_set_dot(g, d, 1);
+            d = grid_get_dot(g, points, cx-2*qx-px, cy-2*qy-py); grid_face_set_dot(g, d, 2);
+            d = grid_get_dot(g, points, cx-2*px-qx, cy-2*py-qy); grid_face_set_dot(g, d, 3);
+            d = grid_get_dot(g, points, cx-2*px   , cy-2*py   ); grid_face_set_dot(g, d, 4);
+
+            grid_face_add_new(g, 5);
+            d = grid_get_dot(g, points, cx        , cy        ); grid_face_set_dot(g, d, 0);
+            d = grid_get_dot(g, points, cx-2*px   , cy-2*py   ); grid_face_set_dot(g, d, 1);
+            d = grid_get_dot(g, points, cx-2*px+rx, cy-2*py+ry); grid_face_set_dot(g, d, 2);
+            d = grid_get_dot(g, points, cx+2*rx-px, cy+2*ry-py); grid_face_set_dot(g, d, 3);
+            d = grid_get_dot(g, points, cx+2*rx   , cy+2*ry   ); grid_face_set_dot(g, d, 4);
+        }
+    }
+
+    freetree234(points);
+    assert(g->num_faces <= max_faces);
+    assert(g->num_dots <= max_dots);
+
+    grid_make_consistent(g);
+    return g;
+}
+
+grid *grid_new_dodecagonal(int width, int height)
+{
+    int x, y;
+    /* Vector for side of triangle - ratio is close to sqrt(3) */
+    int a = 15;
+    int b = 26;
+
+    /* Upper bounds - don't have to be exact */
+    int max_faces = 3 * width * height;
+    int max_dots = 14 * width * height;
+
+    tree234 *points;
+
+    grid *g = grid_new();
+    g->tilesize = b;
+    g->faces = snewn(max_faces, grid_face);
+    g->dots = snewn(max_dots, grid_dot);
+
+    points = newtree234(grid_point_cmp_fn);
+
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            grid_dot *d;
+            /* centre of dodecagon */
+            int px = (4*a + 2*b) * x;
+            int py = (3*a + 2*b) * y;
+            if (y % 2)
+                px += 2*a + b;
+
+            /* dodecagon */
+            grid_face_add_new(g, 12);
+            d = grid_get_dot(g, points, px + (  a    ), py - (2*a + b)); grid_face_set_dot(g, d, 0);
+            d = grid_get_dot(g, points, px + (  a + b), py - (  a + b)); grid_face_set_dot(g, d, 1);
+            d = grid_get_dot(g, points, px + (2*a + b), py - (  a    )); grid_face_set_dot(g, d, 2);
+            d = grid_get_dot(g, points, px + (2*a + b), py + (  a    )); grid_face_set_dot(g, d, 3);
+            d = grid_get_dot(g, points, px + (  a + b), py + (  a + b)); grid_face_set_dot(g, d, 4);
+            d = grid_get_dot(g, points, px + (  a    ), py + (2*a + b)); grid_face_set_dot(g, d, 5);
+            d = grid_get_dot(g, points, px - (  a    ), py + (2*a + b)); grid_face_set_dot(g, d, 6);
+            d = grid_get_dot(g, points, px - (  a + b), py + (  a + b)); grid_face_set_dot(g, d, 7);
+            d = grid_get_dot(g, points, px - (2*a + b), py + (  a    )); grid_face_set_dot(g, d, 8);
+            d = grid_get_dot(g, points, px - (2*a + b), py - (  a    )); grid_face_set_dot(g, d, 9);
+            d = grid_get_dot(g, points, px - (  a + b), py - (  a + b)); grid_face_set_dot(g, d, 10);
+            d = grid_get_dot(g, points, px - (  a    ), py - (2*a + b)); grid_face_set_dot(g, d, 11);
+
+            /* triangle below dodecagon */
+	    if ((y < height - 1 && (x < width - 1 || !(y % 2)) && (x > 0 || (y % 2)))) {
+	      	grid_face_add_new(g, 3);
+	      	d = grid_get_dot(g, points, px + a, py + (2*a +   b)); grid_face_set_dot(g, d, 0);
+	      	d = grid_get_dot(g, points, px    , py + (2*a + 2*b)); grid_face_set_dot(g, d, 1);
+	      	d = grid_get_dot(g, points, px - a, py + (2*a +   b)); grid_face_set_dot(g, d, 2);
+	    }
+
+            /* triangle above dodecagon */
+	    if ((y && (x < width - 1 || !(y % 2)) && (x > 0 || (y % 2)))) {
+	      	grid_face_add_new(g, 3);
+	      	d = grid_get_dot(g, points, px - a, py - (2*a +   b)); grid_face_set_dot(g, d, 0);
+	      	d = grid_get_dot(g, points, px    , py - (2*a + 2*b)); grid_face_set_dot(g, d, 1);
+	      	d = grid_get_dot(g, points, px + a, py - (2*a +   b)); grid_face_set_dot(g, d, 2);
+	    }
+	}
+    }
+
+    freetree234(points);
+    assert(g->num_faces <= max_faces);
+    assert(g->num_dots <= max_dots);
+
+    grid_make_consistent(g);
+    return g;
+}
+
+grid *grid_new_greatdodecagonal(int width, int height)
+{
+    int x, y;
+    /* Vector for side of triangle - ratio is close to sqrt(3) */
+    int a = 15;
+    int b = 26;
+
+    /* Upper bounds - don't have to be exact */
+    int max_faces = 30 * width * height;
+    int max_dots = 200 * width * height;
+
+    tree234 *points;
+
+    grid *g = grid_new();
+    g->tilesize = b;
+    g->faces = snewn(max_faces, grid_face);
+    g->dots = snewn(max_dots, grid_dot);
+
+    points = newtree234(grid_point_cmp_fn);
+
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            grid_dot *d;
+            /* centre of dodecagon */
+            int px = (6*a + 2*b) * x;
+            int py = (3*a + 3*b) * y;
+            if (y % 2)
+                px += 3*a + b;
+
+            /* dodecagon */
+            grid_face_add_new(g, 12);
+            d = grid_get_dot(g, points, px + (  a    ), py - (2*a + b)); grid_face_set_dot(g, d, 0);
+            d = grid_get_dot(g, points, px + (  a + b), py - (  a + b)); grid_face_set_dot(g, d, 1);
+            d = grid_get_dot(g, points, px + (2*a + b), py - (  a    )); grid_face_set_dot(g, d, 2);
+            d = grid_get_dot(g, points, px + (2*a + b), py + (  a    )); grid_face_set_dot(g, d, 3);
+            d = grid_get_dot(g, points, px + (  a + b), py + (  a + b)); grid_face_set_dot(g, d, 4);
+            d = grid_get_dot(g, points, px + (  a    ), py + (2*a + b)); grid_face_set_dot(g, d, 5);
+            d = grid_get_dot(g, points, px - (  a    ), py + (2*a + b)); grid_face_set_dot(g, d, 6);
+            d = grid_get_dot(g, points, px - (  a + b), py + (  a + b)); grid_face_set_dot(g, d, 7);
+            d = grid_get_dot(g, points, px - (2*a + b), py + (  a    )); grid_face_set_dot(g, d, 8);
+            d = grid_get_dot(g, points, px - (2*a + b), py - (  a    )); grid_face_set_dot(g, d, 9);
+            d = grid_get_dot(g, points, px - (  a + b), py - (  a + b)); grid_face_set_dot(g, d, 10);
+            d = grid_get_dot(g, points, px - (  a    ), py - (2*a + b)); grid_face_set_dot(g, d, 11);
+
+            /* hexagon below dodecagon */
+	    if (y < height - 1 && (x < width - 1 || !(y % 2)) && (x > 0 || (y % 2))) {
+	      	grid_face_add_new(g, 6);
+	      	d = grid_get_dot(g, points, px +   a, py + (2*a +   b)); grid_face_set_dot(g, d, 0);
+	      	d = grid_get_dot(g, points, px + 2*a, py + (2*a + 2*b)); grid_face_set_dot(g, d, 1);
+	      	d = grid_get_dot(g, points, px +   a, py + (2*a + 3*b)); grid_face_set_dot(g, d, 2);
+	      	d = grid_get_dot(g, points, px -   a, py + (2*a + 3*b)); grid_face_set_dot(g, d, 3);
+	      	d = grid_get_dot(g, points, px - 2*a, py + (2*a + 2*b)); grid_face_set_dot(g, d, 4);
+	      	d = grid_get_dot(g, points, px -   a, py + (2*a +   b)); grid_face_set_dot(g, d, 5);
+	    }
+
+            /* hexagon above dodecagon */
+	    if (y && (x < width - 1 || !(y % 2)) && (x > 0 || (y % 2))) {
+	      	grid_face_add_new(g, 6);
+	      	d = grid_get_dot(g, points, px -   a, py - (2*a +   b)); grid_face_set_dot(g, d, 0);
+	      	d = grid_get_dot(g, points, px - 2*a, py - (2*a + 2*b)); grid_face_set_dot(g, d, 1);
+	      	d = grid_get_dot(g, points, px -   a, py - (2*a + 3*b)); grid_face_set_dot(g, d, 2);
+	      	d = grid_get_dot(g, points, px +   a, py - (2*a + 3*b)); grid_face_set_dot(g, d, 3);
+	      	d = grid_get_dot(g, points, px + 2*a, py - (2*a + 2*b)); grid_face_set_dot(g, d, 4);
+	      	d = grid_get_dot(g, points, px +   a, py - (2*a +   b)); grid_face_set_dot(g, d, 5);
+	    }
+
+            /* square on right of dodecagon */
+	    if (x < width - 1) {
+	      	grid_face_add_new(g, 4);
+	      	d = grid_get_dot(g, points, px + 2*a + b, py - a); grid_face_set_dot(g, d, 0);
+	      	d = grid_get_dot(g, points, px + 4*a + b, py - a); grid_face_set_dot(g, d, 1);
+	      	d = grid_get_dot(g, points, px + 4*a + b, py + a); grid_face_set_dot(g, d, 2);
+	      	d = grid_get_dot(g, points, px + 2*a + b, py + a); grid_face_set_dot(g, d, 3);
+	    }
+
+            /* square on top right of dodecagon */
+	    if (y && (x < width - 1 || !(y % 2))) {
+	      	grid_face_add_new(g, 4);
+	      	d = grid_get_dot(g, points, px + (  a    ), py - (2*a +   b)); grid_face_set_dot(g, d, 0);
+		d = grid_get_dot(g, points, px + (2*a    ), py - (2*a + 2*b)); grid_face_set_dot(g, d, 1);
+		d = grid_get_dot(g, points, px + (2*a + b), py - (  a + 2*b)); grid_face_set_dot(g, d, 2);
+		d = grid_get_dot(g, points, px + (  a + b), py - (  a +   b)); grid_face_set_dot(g, d, 3);
+	    }
+
+            /* square on top left of dodecagon */
+	    if (y && (x || (y % 2))) {
+	      	grid_face_add_new(g, 4);
+		d = grid_get_dot(g, points, px - (  a + b), py - (  a +   b)); grid_face_set_dot(g, d, 0);
+		d = grid_get_dot(g, points, px - (2*a + b), py - (  a + 2*b)); grid_face_set_dot(g, d, 1);
+		d = grid_get_dot(g, points, px - (2*a    ), py - (2*a + 2*b)); grid_face_set_dot(g, d, 2);
+	      	d = grid_get_dot(g, points, px - (  a    ), py - (2*a +   b)); grid_face_set_dot(g, d, 3);
+	    }
+	}
+    }
+
+    freetree234(points);
+    assert(g->num_faces <= max_faces);
+    assert(g->num_dots <= max_dots);
 
     grid_make_consistent(g);
     return g;
