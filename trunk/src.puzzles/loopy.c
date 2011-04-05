@@ -228,6 +228,7 @@ struct game_drawstate {
     int started;
     int tilesize;
     int flashing;
+    int *textx, *texty;
     char *lines;
     char *clue_error;
     char *clue_satisfied;
@@ -838,8 +839,14 @@ static float *game_colours(frontend *fe, int *ncolours)
     ret[COL_FOREGROUND * 3 + 1] = 0.0F;
     ret[COL_FOREGROUND * 3 + 2] = 0.0F;
 
-    ret[COL_LINEUNKNOWN * 3 + 0] = 0.8F;
-    ret[COL_LINEUNKNOWN * 3 + 1] = 0.8F;
+    /*
+     * We want COL_LINEUNKNOWN to be a yellow which is a bit darker
+     * than the background. (I previously set it to 0.8,0.8,0, but
+     * found that this went badly with the 0.8,0.8,0.8 favoured as a
+     * background by the Java frontend.)
+     */
+    ret[COL_LINEUNKNOWN * 3 + 0] = ret[COL_BACKGROUND * 3 + 0] * 0.9F;
+    ret[COL_LINEUNKNOWN * 3 + 1] = ret[COL_BACKGROUND * 3 + 1] * 0.9F;
     ret[COL_LINEUNKNOWN * 3 + 2] = 0.0F;
 
     ret[COL_HIGHLIGHT * 3 + 0] = 1.0F;
@@ -871,17 +878,22 @@ static game_drawstate *game_new_drawstate(drawing *dr, game_state *state)
     struct game_drawstate *ds = snew(struct game_drawstate);
     int num_faces = state->game_grid->num_faces;
     int num_edges = state->game_grid->num_edges;
+    int i;
 
     ds->tilesize = 0;
     ds->started = 0;
     ds->lines = snewn(num_edges, char);
     ds->clue_error = snewn(num_faces, char);
     ds->clue_satisfied = snewn(num_faces, char);
+    ds->textx = snewn(num_faces, int);
+    ds->texty = snewn(num_faces, int);
     ds->flashing = 0;
 
     memset(ds->lines, LINE_UNKNOWN, num_edges);
     memset(ds->clue_error, 0, num_faces);
     memset(ds->clue_satisfied, 0, num_faces);
+    for (i = 0; i < num_faces; i++)
+        ds->textx[i] = ds->texty[i] = -1;
 
     return ds;
 }
@@ -1828,7 +1840,6 @@ static char *new_game_desc(game_params *params, random_state *rs,
     grid *g;
     game_state *state = snew(game_state);
     game_state *state_new;
-    int count = 0;
     params_generate_grid(params);
     state->game_grid = g = params->game_grid;
     g->refcount++;
@@ -1850,7 +1861,6 @@ static char *new_game_desc(game_params *params, random_state *rs,
      * preventing games smaller than 4x4 seems to stop this happening */
     do {
         add_full_clues(state, rs);
-        if (++count%100 == 0) printf("tried %d times to make a unique board\n", count);
     } while (!game_has_unique_soln(state, params->diff));
 
     state_new = remove_clues(state, rs, params->diff);
@@ -2426,6 +2436,13 @@ static int trivial_deductions(solver_state *sstate)
         if (state->clues[i] < 0)
             continue;
 
+        /*
+         * This code checks whether the numeric clue on a face is so
+         * large as to permit all its remaining LINE_UNKNOWNs to be
+         * filled in as LINE_YES, or alternatively so small as to
+         * permit them all to be filled in as LINE_NO.
+         */
+
         if (state->clues[i] < current_yes) {
             sstate->solver_status = SOLVER_MISTAKE;
             return DIFF_EASY;
@@ -2446,6 +2463,57 @@ static int trivial_deductions(solver_state *sstate)
                 diff = min(diff, DIFF_EASY);
             sstate->face_solved[i] = TRUE;
             continue;
+        }
+
+        if (f->order - state->clues[i] == current_no + 1 &&
+            f->order - current_yes - current_no > 2) {
+            /*
+             * One small refinement to the above: we also look for any
+             * adjacent pair of LINE_UNKNOWNs around the face with
+             * some LINE_YES incident on it from elsewhere. If we find
+             * one, then we know that pair of LINE_UNKNOWNs can't
+             * _both_ be LINE_YES, and hence that pushes us one line
+             * closer to being able to determine all the rest.
+             */
+            int j, k, e1, e2, e, d;
+
+            for (j = 0; j < f->order; j++) {
+                e1 = f->edges[j] - g->edges;
+                e2 = f->edges[j+1 < f->order ? j+1 : 0] - g->edges;
+
+                if (g->edges[e1].dot1 == g->edges[e2].dot1 ||
+                    g->edges[e1].dot1 == g->edges[e2].dot2) {
+                    d = g->edges[e1].dot1 - g->dots;
+                } else {
+                    assert(g->edges[e1].dot2 == g->edges[e2].dot1 ||
+                           g->edges[e1].dot2 == g->edges[e2].dot2);
+                    d = g->edges[e1].dot2 - g->dots;
+                }
+
+                if (state->lines[e1] == LINE_UNKNOWN &&
+                    state->lines[e2] == LINE_UNKNOWN) {
+                    for (k = 0; k < g->dots[d].order; k++) {
+                        int e = g->dots[d].edges[k] - g->edges;
+                        if (state->lines[e] == LINE_YES)
+                            goto found;    /* multi-level break */
+                    }
+                }
+            }
+            continue;
+
+          found:
+            /*
+             * If we get here, we've found such a pair of edges, and
+             * they're e1 and e2.
+             */
+            for (j = 0; j < f->order; j++) {
+                e = f->edges[j] - g->edges;
+                if (state->lines[e] == LINE_UNKNOWN && e != e1 && e != e2) {
+                    int r = solver_set_line(sstate, e, LINE_YES);
+                    assert(r);
+                    diff = min(diff, DIFF_EASY);
+                }
+            }
         }
     }
 
@@ -3336,29 +3404,190 @@ static void grid_to_screen(const game_drawstate *ds, const grid *g,
 /* Returns (into x,y) position of centre of face for rendering the text clue.
  */
 static void face_text_pos(const game_drawstate *ds, const grid *g,
-                          const grid_face *f, int *x, int *y)
+                          const grid_face *f, int *xret, int *yret)
 {
-    int i;
+    int x, y, x0, y0, x1, y1, xbest, ybest, i, shift;
+    long bestdist;
+    int faceindex = f - g->faces;
 
-    /* Simplest solution is the centroid. Might not work in some cases. */
-
-    /* Another algorithm to look into:
-     * Find the midpoints of the sides, find the bounding-box,
-     * then take the centre of that. */
-
-    /* Best solution probably involves incentres (inscribed circles) */
-
-    int sx = 0, sy = 0; /* sums */
-    for (i = 0; i < f->order; i++) {
-        grid_dot *d = f->dots[i];
-        sx += d->x;
-        sy += d->y;
+    /*
+     * Return the cached position for this face, if we've already
+     * worked it out.
+     */
+    if (ds->textx[faceindex] >= 0) {
+        *xret = ds->textx[faceindex];
+        *yret = ds->texty[faceindex];
+        return;
     }
-    sx /= f->order;
-    sy /= f->order;
+
+    /*
+     * Otherwise, try to find the point in the polygon with the
+     * maximum distance to any edge or corner.
+     *
+     * Start by working out the face's bounding box, in grid
+     * coordinates.
+     */
+    x0 = x1 = f->dots[0]->x;
+    y0 = y1 = f->dots[0]->y;
+    for (i = 1; i < f->order; i++) {
+        if (x0 > f->dots[i]->x) x0 = f->dots[i]->x;
+        if (x1 < f->dots[i]->x) x1 = f->dots[i]->x;
+        if (y0 > f->dots[i]->y) y0 = f->dots[i]->y;
+        if (y1 < f->dots[i]->y) y1 = f->dots[i]->y;
+    }
+
+    /*
+     * If the grid is at excessive resolution, decide on a scaling
+     * factor to bring it within reasonable bounds so we don't have to
+     * think too hard or suffer integer overflow.
+     */
+    shift = 0;
+    while (x1 - x0 > 128 || y1 - y0 > 128) {
+        shift++;
+        x0 >>= 1;
+        x1 >>= 1;
+        y0 >>= 1;
+        y1 >>= 1;
+    }
+
+    /*
+     * Now iterate over every point in that bounding box.
+     */
+    xbest = ybest = -1;
+    bestdist = -1;
+    for (y = y0; y <= y1; y++) {
+        for (x = x0; x <= x1; x++) {
+            /*
+             * First, disqualify the point if it's not inside the
+             * polygon, which we work out by counting the edges to the
+             * right of the point. (For tiebreaking purposes when
+             * edges start or end on our y-coordinate or go right
+             * through it, we consider our point to be offset by a
+             * small _positive_ epsilon in both the x- and
+             * y-direction.)
+             */
+            int in = 0;
+            for (i = 0; i < f->order; i++) {
+                int xs = f->edges[i]->dot1->x >> shift;
+                int xe = f->edges[i]->dot2->x >> shift;
+                int ys = f->edges[i]->dot1->y >> shift;
+                int ye = f->edges[i]->dot2->y >> shift;
+                if ((y >= ys && y < ye) || (y >= ye && y < ys)) {
+                    /*
+                     * The line goes past our y-position. Now we need
+                     * to know if its x-coordinate when it does so is
+                     * to our right.
+                     *
+                     * The x-coordinate in question is mathematically
+                     * (y - ys) * (xe - xs) / (ye - ys), and we want
+                     * to know whether (x - xs) >= that. Of course we
+                     * avoid the division, so we can work in integers;
+                     * to do this we must multiply both sides of the
+                     * inequality by ye - ys, which means we must
+                     * first check that's not negative.
+                     */
+                    int num = xe - xs, denom = ye - ys;
+                    if (denom < 0) {
+                        num = -num;
+                        denom = -denom;
+                    }
+                    if ((x - xs) * denom >= (y - ys) * num)
+                        in ^= 1;
+                }
+            }
+
+            if (in) {
+                long mindist = LONG_MAX;
+
+                /*
+                 * This point is inside the polygon, so now we check
+                 * its minimum distance to every edge and corner.
+                 * First the corners ...
+                 */
+                for (i = 0; i < f->order; i++) {
+                    int xp = f->dots[i]->x >> shift;
+                    int yp = f->dots[i]->y >> shift;
+                    int dx = x - xp, dy = y - yp;
+                    long dist = (long)dx*dx + (long)dy*dy;
+                    if (mindist > dist)
+                        mindist = dist;
+                }
+
+                /*
+                 * ... and now also check the perpendicular distance
+                 * to every edge, if the perpendicular lies between
+                 * the edge's endpoints.
+                 */
+                for (i = 0; i < f->order; i++) {
+                    int xs = f->edges[i]->dot1->x >> shift;
+                    int xe = f->edges[i]->dot2->x >> shift;
+                    int ys = f->edges[i]->dot1->y >> shift;
+                    int ye = f->edges[i]->dot2->y >> shift;
+
+                    /*
+                     * If s and e are our endpoints, and p our
+                     * candidate circle centre, the foot of a
+                     * perpendicular from p to the line se lies
+                     * between s and e if and only if (p-s).(e-s) lies
+                     * strictly between 0 and (e-s).(e-s).
+                     */
+                    int edx = xe - xs, edy = ye - ys;
+                    int pdx = x - xs, pdy = y - ys;
+                    long pde = (long)pdx * edx + (long)pdy * edy;
+                    long ede = (long)edx * edx + (long)edy * edy;
+                    if (0 < pde && pde < ede) {
+                        /*
+                         * Yes, the nearest point on this edge is
+                         * closer than either endpoint, so we must
+                         * take it into account by measuring the
+                         * perpendicular distance to the edge and
+                         * checking its square against mindist.
+                         */
+
+                        long pdre = (long)pdx * edy - (long)pdy * edx;
+                        long sqlen = pdre * pdre / ede;
+
+                        if (mindist > sqlen)
+                            mindist = sqlen;
+                    }
+                }
+
+                /*
+                 * Right. Now we know the biggest circle around this
+                 * point, so we can check it against bestdist.
+                 */
+                if (bestdist < mindist) {
+                    bestdist = mindist;
+                    xbest = x;
+                    ybest = y;
+                }
+            }
+        }
+    }
+
+    assert(bestdist >= 0);
 
     /* convert to screen coordinates */
-    grid_to_screen(ds, g, sx, sy, x, y);
+    grid_to_screen(ds, g, xbest << shift, ybest << shift,
+                   &ds->textx[faceindex], &ds->texty[faceindex]);
+
+    *xret = ds->textx[faceindex];
+    *yret = ds->texty[faceindex];
+}
+
+static void face_text_bbox(game_drawstate *ds, grid *g, grid_face *f,
+                           int *x, int *y, int *w, int *h)
+{
+    int xx, yy;
+    face_text_pos(ds, g, f, &xx, &yy);
+
+    /* There seems to be a certain amount of trial-and-error involved
+     * in working out the correct bounding-box for the text. */
+
+    *x = xx - ds->tilesize/4 - 1;
+    *y = yy - ds->tilesize/4 - 3;
+    *w = ds->tilesize/2 + 2;
+    *h = ds->tilesize/2 + 5;
 }
 
 static void game_redraw_clue(drawing *dr, game_drawstate *ds,
@@ -3384,8 +3613,49 @@ static void game_redraw_clue(drawing *dr, game_drawstate *ds,
 	      ds->clue_satisfied[i] ? COL_SATISFIED : COL_FOREGROUND, c);
 }
 
+static void edge_bbox(game_drawstate *ds, grid *g, grid_edge *e,
+                      int *x, int *y, int *w, int *h)
+{
+    int x1 = e->dot1->x;
+    int y1 = e->dot1->y;
+    int x2 = e->dot2->x;
+    int y2 = e->dot2->y;
+    int xmin, xmax, ymin, ymax;
+
+    grid_to_screen(ds, g, x1, y1, &x1, &y1);
+    grid_to_screen(ds, g, x2, y2, &x2, &y2);
+    /* Allow extra margin for dots, and thickness of lines */
+    xmin = min(x1, x2) - 2;
+    xmax = max(x1, x2) + 2;
+    ymin = min(y1, y2) - 2;
+    ymax = max(y1, y2) + 2;
+
+    *x = xmin;
+    *y = ymin;
+    *w = xmax - xmin + 1;
+    *h = ymax - ymin + 1;
+}
+
+static void dot_bbox(game_drawstate *ds, grid *g, grid_dot *d,
+                     int *x, int *y, int *w, int *h)
+{
+    int x1, y1;
+
+    grid_to_screen(ds, g, d->x, d->y, &x1, &y1);
+
+    *x = x1 - 2;
+    *y = y1 - 2;
+    *w = 5;
+    *h = 5;
+}
+
+static const int loopy_line_redraw_phases[] = {
+    COL_FAINT, COL_LINEUNKNOWN, COL_FOREGROUND, COL_HIGHLIGHT, COL_MISTAKE
+};
+#define NPHASES lenof(loopy_line_redraw_phases)
+
 static void game_redraw_line(drawing *dr, game_drawstate *ds,
-			     game_state *state, int i)
+			     game_state *state, int i, int phase)
 {
     grid *g = state->game_grid;
     grid_edge *e = g->edges + i;
@@ -3403,6 +3673,8 @@ static void game_redraw_line(drawing *dr, game_drawstate *ds,
 	line_colour = COL_HIGHLIGHT;
     else
 	line_colour = COL_FOREGROUND;
+    if (line_colour != loopy_line_redraw_phases[phase])
+        return;
 
     /* Convert from grid to screen coordinates */
     grid_to_screen(ds, g, e->dot1->x, e->dot1->y, &x1, &y1);
@@ -3439,6 +3711,49 @@ static void game_redraw_dot(drawing *dr, game_drawstate *ds,
 
     grid_to_screen(ds, g, d->x, d->y, &x, &y);
     draw_circle(dr, x, y, 2, COL_FOREGROUND, COL_FOREGROUND);
+}
+
+static int boxes_intersect(int x0, int y0, int w0, int h0,
+                           int x1, int y1, int w1, int h1)
+{
+    /*
+     * Two intervals intersect iff neither is wholly on one side of
+     * the other. Two boxes intersect iff their horizontal and
+     * vertical intervals both intersect.
+     */
+    return (x0 < x1+w1 && x1 < x0+w0 && y0 < y1+h1 && y1 < y0+h0);
+}
+
+static void game_redraw_in_rect(drawing *dr, game_drawstate *ds,
+                                game_state *state, int x, int y, int w, int h)
+{
+    grid *g = state->game_grid;
+    int i, phase;
+    int bx, by, bw, bh;
+
+    clip(dr, x, y, w, h);
+    draw_rect(dr, x, y, w, h, COL_BACKGROUND);
+
+    for (i = 0; i < g->num_faces; i++) {
+        face_text_bbox(ds, g, &g->faces[i], &bx, &by, &bw, &bh);
+        if (boxes_intersect(x, y, w, h, bx, by, bw, bh))
+            game_redraw_clue(dr, ds, state, i);
+    }
+    for (phase = 0; phase < NPHASES; phase++) {
+        for (i = 0; i < g->num_edges; i++) {
+            edge_bbox(ds, g, &g->edges[i], &bx, &by, &bw, &bh);
+            if (boxes_intersect(x, y, w, h, bx, by, bw, bh))
+                game_redraw_line(dr, ds, state, i, phase);
+        }
+    }
+    for (i = 0; i < g->num_dots; i++) {
+        dot_bbox(ds, g, &g->dots[i], &bx, &by, &bw, &bh);
+        if (boxes_intersect(x, y, w, h, bx, by, bw, bh))
+            game_redraw_dot(dr, ds, state, i);
+    }
+
+    unclip(dr);
+    draw_update(dr, x, y, w, h);
 }
 
 static void game_redraw(drawing *dr, game_drawstate *ds, game_state *oldstate,
@@ -3539,97 +3854,31 @@ static void game_redraw(drawing *dr, game_drawstate *ds, game_state *oldstate,
 
     /* Pass one is now done.  Now we do the actual drawing. */
     if (redraw_everything) {
-
-	/* This is the unsubtle version. */
-
         int grid_width = g->highest_x - g->lowest_x;
         int grid_height = g->highest_y - g->lowest_y;
         int w = grid_width * ds->tilesize / g->tilesize;
         int h = grid_height * ds->tilesize / g->tilesize;
 
-	draw_rect(dr, 0, 0, w + 2*border + 1, h + 2*border + 1,
-		  COL_BACKGROUND);
-
-	for (i = 0; i < g->num_faces; i++)
-	    game_redraw_clue(dr, ds, state, i);
-	for (i = 0; i < g->num_edges; i++)
-	    game_redraw_line(dr, ds, state, i);
-	for (i = 0; i < g->num_dots; i++)
-	    game_redraw_dot(dr, ds, state, i);
-
-	draw_update(dr, 0, 0, w + 2*border + 1, h + 2*border + 1);
+        game_redraw_in_rect(dr, ds, state,
+                            0, 0, w + 2*border + 1, h + 2*border + 1);
     } else {
 
 	/* Right.  Now we roll up our sleeves. */
 
 	for (i = 0; i < nfaces; i++) {
 	    grid_face *f = g->faces + faces[i];
-	    int xx, yy;
 	    int x, y, w, h;
-	    int j;
 
-	    /* There seems to be a certain amount of trial-and-error
-	     * involved in working out the correct bounding-box for
-	     * the text. */
-	    face_text_pos(ds, g, f, &xx, &yy);
-
-	    x = xx - ds->tilesize/4 - 1; w = ds->tilesize/2 + 2;
-	    y = yy - ds->tilesize/4 - 3; h = ds->tilesize/2 + 5;
-	    clip(dr, x, y, w, h);
-	    draw_rect(dr, x, y, w, h, COL_BACKGROUND);
-
-	    game_redraw_clue(dr, ds, state, faces[i]);
-	    for (j = 0; j < f->order; j++)
-		game_redraw_line(dr, ds, state, f->edges[j] - g->edges);
-	    for (j = 0; j < f->order; j++)
-		game_redraw_dot(dr, ds, state, f->dots[j] - g->dots);
-	    unclip(dr);
-	    draw_update(dr, x, y, w, h);
+            face_text_bbox(ds, g, f, &x, &y, &w, &h);
+            game_redraw_in_rect(dr, ds, state, x, y, w, h);
 	}
 
 	for (i = 0; i < nedges; i++) {
-	    grid_edge *e = g->edges + edges[i], *ee;
-	    int x1 = e->dot1->x;
-	    int y1 = e->dot1->y;
-	    int x2 = e->dot2->x;
-	    int y2 = e->dot2->y;
-	    int xmin, xmax, ymin, ymax;
-	    int j;
+	    grid_edge *e = g->edges + edges[i];
+            int x, y, w, h;
 
-	    grid_to_screen(ds, g, x1, y1, &x1, &y1);
-	    grid_to_screen(ds, g, x2, y2, &x2, &y2);
-	    /* Allow extra margin for dots, and thickness of lines */
-	    xmin = min(x1, x2) - 2;
-	    xmax = max(x1, x2) + 2;
-	    ymin = min(y1, y2) - 2;
-	    ymax = max(y1, y2) + 2;
-	    /* For testing, I find it helpful to change COL_BACKGROUND
-	     * to COL_SATISFIED here. */
-	    clip(dr, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
-	    draw_rect(dr, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1,
-		      COL_BACKGROUND);
-
-	    if (e->face1)
-		game_redraw_clue(dr, ds, state, e->face1 - g->faces);
-	    if (e->face2)
-		game_redraw_clue(dr, ds, state, e->face2 - g->faces);
-
-	    game_redraw_line(dr, ds, state, edges[i]);
-	    for (j = 0; j < e->dot1->order; j++) {
-		ee = e->dot1->edges[j];
-		if (ee != e)
-		    game_redraw_line(dr, ds, state, ee - g->edges);
-	    }
-	    for (j = 0; j < e->dot2->order; j++) {
-		ee = e->dot2->edges[j];
-		if (ee != e)
-		    game_redraw_line(dr, ds, state, ee - g->edges);
-	    }
-	    game_redraw_dot(dr, ds, state, e->dot1 - g->dots);
-	    game_redraw_dot(dr, ds, state, e->dot2 - g->dots);
-
-	    unclip(dr);
-	    draw_update(dr, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
+            edge_bbox(ds, g, e, &x, &y, &w, &h);
+            game_redraw_in_rect(dr, ds, state, x, y, w, h);
 	}
     }
 
@@ -3645,6 +3894,11 @@ static float game_flash_length(game_state *oldstate, game_state *newstate,
     }
 
     return 0.0F;
+}
+
+static int game_is_solved(game_state *state)
+{
+    return state->solved;
 }
 
 static void game_print_size(game_params *params, float *x, float *y)
@@ -3773,6 +4027,7 @@ const struct game thegame = {
     game_redraw,
     game_anim_length,
     game_flash_length,
+    game_is_solved,
     TRUE, FALSE, game_print_size, game_print,
     FALSE /* wants_statusbar */,
     FALSE, game_timing_state,
