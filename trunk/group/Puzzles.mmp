@@ -42,6 +42,7 @@ SOURCE maxflow.c mines.c net.c netslide.c obfusc.c pattern.c
 SOURCE pegs.c range.c rect.c samegame.c sixteen.c slant.c solo.c
 SOURCE tents.c tree234.c twiddle.c unequal.c towers.c
 SOURCE untangle.c printing.c magnets.c singles.c signpost.c
+SOURCE penrose.c
 
 
 SOURCEPATH		..\data
