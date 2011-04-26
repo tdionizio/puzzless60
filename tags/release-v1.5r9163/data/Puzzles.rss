@@ -1,0 +1,389 @@
+
+//  RESOURCE IDENTIFIER
+NAME PUZZ    // 4 letter ID
+
+
+//  INCLUDES
+#include <eikon.rh>
+#include <avkon.rsg>
+#include <avkon.rh>
+#include <appinfo.rh>
+#include "Puzzles.hrh"
+#include "Puzzles.rls"
+
+//  RESOURCE DEFINITIONS
+// -----------------------------------------------------------------------------
+//
+//    Define the resource file signature
+//    This resource should be empty.
+//
+// -----------------------------------------------------------------------------
+//
+RESOURCE RSS_SIGNATURE
+{
+}
+
+// -----------------------------------------------------------------------------
+//
+//    Default Document Name
+//
+// -----------------------------------------------------------------------------
+//
+RESOURCE TBUF r_default_document_name
+{
+    buf="PUZZLES";
+}
+
+// -----------------------------------------------------------------------------
+//
+//    Define default menu and CBA key.
+//
+// -----------------------------------------------------------------------------
+//
+RESOURCE EIK_APP_INFO
+{
+    menubar = r_menubar;
+    cba = R_AVKON_SOFTKEYS_OPTIONS_EXIT;
+}
+
+
+// -----------------------------------------------------------------------------
+//
+//    CBA Buttons for help browser
+//
+// -----------------------------------------------------------------------------
+//
+RESOURCE CBA r_help_softkeys_back_close
+{
+    flags = 0;
+    buttons = 
+    {
+        CBA_BUTTON {id = EAknSoftkeyBack; txt = qtn_softkey_back;},
+        CBA_BUTTON {id = EAknSoftkeyClose; txt = qtn_softkey_close;}
+    };
+}
+
+
+// -----------------------------------------------------------------------------
+//
+//   r_menubar
+//   Main menubar
+//
+// -----------------------------------------------------------------------------
+//
+RESOURCE MENU_BAR r_menubar
+{
+    titles =
+    {
+        MENU_TITLE { menu_pane = r_menu; }
+    };
+}
+
+
+// -----------------------------------------------------------------------------
+//
+//   r_menu
+//   Menu for "Options"
+//
+// -----------------------------------------------------------------------------
+//
+RESOURCE MENU_PANE r_menu
+{
+    items =
+    {
+        MENU_ITEM
+        {
+            command = ECommandGameNew;
+            txt = qtn_commandGameNew;
+        },
+        MENU_ITEM
+        {
+            command = ECommandGameType;
+            cascade = r_menu_game_type;
+            txt = qtn_commandGameType;
+        },
+        MENU_ITEM
+        {
+            command = ECommandGame;
+            cascade = r_menu_game;
+            txt = qtn_commandGame;
+        },
+        MENU_ITEM
+        {
+            command = ECommandSelectGame;
+            txt = qtn_commandSelectGame;
+        },
+        MENU_ITEM
+        {
+            command = ECommandSettings;
+            txt = qtn_commandSettings;
+            cascade = r_menu_settings;
+        },
+        MENU_ITEM
+        {
+            command = EHelp;
+            txt = qtn_help;
+            cascade = r_menu_help;
+        },
+        MENU_ITEM
+        {
+            command = EAknSoftkeyExit;
+            txt = qtn_exit;
+        }
+    };
+}
+
+RESOURCE MENU_PANE r_menu_help
+{
+    items =
+    {
+        MENU_ITEM
+        {
+            command = EHelpIntroduction;
+            txt = qtn_helpIntroduction;
+        },
+        MENU_ITEM
+        {
+            command = EHelpCommonFeatures;
+            txt = qtn_helpCommonFeatures;
+        },
+        MENU_ITEM
+        {
+            command = EHelpGame;
+            txt = qtn_helpGame;
+        },
+        MENU_ITEM
+        {
+            command = EHelpOverview;
+            txt = qtn_helpOverview;
+        }
+    };
+}
+
+RESOURCE MENU_PANE r_menu_settings
+{
+    items =
+    {
+        MENU_ITEM
+        {
+            command = ECommandScreen;
+            cascade = r_menu_screen;
+            txt = qtn_commandScreen;
+        },
+        MENU_ITEM
+        {
+            command = ECommandOrientation;
+            cascade = r_menu_orientation;
+            txt = qtn_commandOrientation;
+        }
+    };
+}
+RESOURCE MENU_PANE r_menu_game
+{
+    items =
+    {
+        MENU_ITEM
+        {
+            command = ECommandGameRestart;
+            txt = qtn_commandGameRestart;
+        },
+        MENU_ITEM
+        {
+            command = ECommandGameUndo;
+            txt = qtn_commandGameUndo;
+        },
+        MENU_ITEM
+        {
+            command = ECommandGameRedo;
+            txt = qtn_commandGameRedo;
+        },
+        MENU_ITEM
+        {
+            command = ECommandGameSolve;
+            txt = qtn_commandGameSolve;
+        }
+    };
+}
+
+
+RESOURCE MENU_PANE r_menu_screen
+{
+    items =
+    {
+        MENU_ITEM
+        {
+            command = ECommandScreenNormal;
+            txt = qtn_commandScreenNormal;
+            flags = EEikMenuItemRadioStart;
+        },
+        MENU_ITEM
+        {
+            command = ECommandScreenLargeTop;
+            txt = qtn_commandScreenLargeTop;
+        },
+        MENU_ITEM
+        {
+            command = ECommandScreenLargeBottom;
+            txt = qtn_commandScreenLargeBottom;
+        },
+        MENU_ITEM
+        {
+            command = ECommandScreenFull;
+            txt = qtn_commandScreenFull;
+            flags = EEikMenuItemRadioEnd;
+        }
+    };
+}
+
+RESOURCE MENU_PANE r_menu_orientation
+{
+    items =
+    {
+        MENU_ITEM
+        {
+            command = ECommandOrientationAutomatic;
+            txt = qtn_commandOrientationAutomatic;
+            flags = EEikMenuItemRadioStart;
+        },
+        MENU_ITEM
+        {
+            command = ECommandOrientationPortrait;
+            txt = qtn_commandOrientationPortrait;
+        },
+        MENU_ITEM
+        {
+            command = ECommandOrientationLandscape;
+            txt = qtn_commandOrientationLandscape;
+            flags = EEikMenuItemRadioEnd;
+        }
+    };
+}
+
+RESOURCE MENU_PANE r_menu_game_type
+{
+    items =
+    {
+    };
+}
+
+RESOURCE DIALOG r_game_params_dialog
+{
+    flags = EEikDialogFlagWait | EEikDialogFlagFillAppClientRect 
+        | EEikDialogFlagNoTitleBar | EEikDialogFlagNoDrag 
+        | EEikDialogFlagCbaButtons;
+    buttons = R_AVKON_SOFTKEYS_OK_CANCEL;
+}
+
+
+// ---------------------------------------------------------
+//   
+//   SETTING ITEM LIST
+//
+// ---------------------------------------------------------
+//
+RESOURCE AVKON_SETTING_ITEM_LIST r_entry_settings_list
+{
+    title = qtn_settingsDialogTitle;
+}
+
+// ---------------------------------------------------------
+//   
+//   TEXT SETTING PAGE
+//
+// ---------------------------------------------------------
+//
+RESOURCE AVKON_SETTING_PAGE r_text_setting_page
+{
+    type = EEikCtEdwin;
+    editor_resource_id = r_name_edwin;
+}
+    
+RESOURCE EDWIN r_name_edwin
+{
+    width = 10;
+    maxlength = 20;
+    default_input_mode = EAknEditorNumericInputMode;
+}
+
+// ---------------------------------------------------------
+//   
+//   ENUMERATED TEXT SETTING PAGE
+//
+// ---------------------------------------------------------
+//
+RESOURCE AVKON_SETTING_PAGE r_enumeratedtext_setting_page
+{
+    type = EAknCtPopupSettingList;
+    editor_resource_id = r_popup_setting_list;
+}
+    
+RESOURCE POPUP_SETTING_LIST r_popup_setting_list
+{
+    flags = 0;
+}
+    
+RESOURCE AVKON_POPUP_SETTING_TEXTS r_popup_setting_texts
+{
+    setting_texts_resource = r_texts;
+}
+    
+RESOURCE ARRAY r_texts
+{
+    items =
+    {
+        AVKON_ENUMERATED_TEXT { value=0; text = "dummy"; }
+    };
+}    
+
+// ---------------------------------------------------------
+//   
+//   BINARY SETTING PAGE
+//
+// ---------------------------------------------------------
+//
+RESOURCE AVKON_SETTING_PAGE r_binary_setting_page
+{
+    type = EAknCtPopupSettingList;
+    editor_resource_id = r_binary;
+}
+
+RESOURCE POPUP_SETTING_LIST r_binary
+{
+    // no definitions required - values obtained from 
+    // associated_resource of owning AVKON_SETTING_ITEM_LIST
+}
+    
+RESOURCE AVKON_POPUP_SETTING_TEXTS r_binary_texts
+{
+    setting_texts_resource = r_texts_binary;
+}
+    
+RESOURCE ARRAY r_texts_binary
+{
+    items =
+    {
+        AVKON_ENUMERATED_TEXT { value=0; text = qtn_optionNo; },
+        AVKON_ENUMERATED_TEXT { value=1; text = qtn_optionYes; }
+    };
+}   
+
+// ---------------------------------------------------------------------------- 
+//
+// r_localisable_app_info
+//
+// ---------------------------------------------------------------------------- 
+//
+RESOURCE LOCALISABLE_APP_INFO r_localisable_app_info
+{
+    short_caption = qtn_caption_string;
+    caption_and_icon = 
+        CAPTION_AND_ICON_INFO
+        {
+            caption = qtn_caption_string;
+    
+            number_of_icons = 1;
+            icon_file = "\\resource\\apps\\0xa000ef77\\puzzles.mif";
+        };
+}
+
+// End of File
