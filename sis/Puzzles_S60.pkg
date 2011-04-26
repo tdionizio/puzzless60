@@ -10,7 +10,7 @@
 &EN
 
 ; standard SIS file header
-#{"Puzzles"},(0xA000EF77),1,5,9145
+#{"Puzzles"},(0xA000EF77),1,5,9163
 
 ;Localised Vendor name
 %{"Tiago Dionizio-EN"}
