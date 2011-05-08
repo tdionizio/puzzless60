@@ -96,11 +96,11 @@ void CPuzzlesAppUi::ConstructL() {
     
     TBuf8<20> lastGame;
     iAppConfig.GetLastSelectedGame(lastGame);
+    iAppView->PushLayoutL(CPuzzlesAppView::ELayoutGame);
     if (iAppView->GameContainer()->SelectGame(lastGame)) {
         iAppView->GameContainer()->LoadOrNewGame();
-        iAppView->SwitchLayoutL(CPuzzlesAppView::ELayoutGame);
     } else {
-        iAppView->SwitchLayoutL(CPuzzlesAppView::ELayoutGameList);
+        iAppView->PushLayoutL(CPuzzlesAppView::ELayoutGameList);
     }
     
     TInt orientation =
@@ -183,7 +183,9 @@ void CPuzzlesAppUi::DynInitMenuPaneL(TInt aResourceId, CEikMenuPane* aMenuPane) 
 #ifdef ENABLE_TOUCH_UI
 void CPuzzlesAppUi::HandleTitlePaneEventL(TInt aEventID) {
     if (aEventID == EAknTitlePaneTapped) {
-        iAppView->SwitchLayoutL(CPuzzlesAppView::ELayoutGameList);
+        if (iAppView->GetCurrentLayout() == CPuzzlesAppView::ELayoutGame) {
+            iAppView->PushLayoutL(CPuzzlesAppView::ELayoutGameList);
+        }
     }
 }
 void CPuzzlesAppUi::HandleNaviDecoratorEventL(TInt aEventID) {
@@ -232,7 +234,7 @@ void CPuzzlesAppUi::HandleCommandL(TInt aCommand) {
             break;
             
         case ECommandGameTypeCustom: {
-            iAppView->SwitchLayoutL(CPuzzlesAppView::ELayoutGameParameters);
+            iAppView->PushLayoutL(CPuzzlesAppView::ELayoutGameParameters);
             break;
         }
             
@@ -290,7 +292,7 @@ void CPuzzlesAppUi::HandleCommandL(TInt aCommand) {
             
         default:
             if (!iAppView->HandleCommandL(aCommand)) {
-                Panic(EPuzzlesUi);
+                Panic(EPuzzlesPanicCommandHandler);
             }
             break;
     }
