@@ -5,7 +5,9 @@
 /** Puzzles application panic codes */
 enum TPuzzlesPanics
 	{
-	EPuzzlesUi = 1
+	EPuzzlesPanic = 1,
+    EPuzzlesPanicCommandHandler,
+    EPuzzlesPanicInvalidLayout,
 	// add further panics here
 	};
 

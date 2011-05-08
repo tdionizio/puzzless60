@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "Puzzles.hrh"
+#include "Puzzles.pan"
 #include "CGameView.h"
 #include "CGameContainer.h"
 #include "PuzzlesApplication.h"
@@ -66,6 +67,8 @@ void CPuzzlesAppView::ConstructL(const TRect& aRect, CPuzzlesAppUi *aAppUi) {
     InitComponentArrayL();
     
     iAppUi = aAppUi;
+    iCurrentLayout = 0;
+    iLayoutStack[iCurrentLayout] = ELayoutNone;
     
     ConstructGameContainerL();
     ConstructGameListL();
@@ -143,6 +146,7 @@ void CPuzzlesAppView::ConstructGameListL() {
     iGameList->Model()->SetOwnershipType(ELbmOwnsItemArray);
     
     iGameList->SetListBoxObserver(this);
+    iGameList->MakeVisible(EFalse);
 }
 
 void CPuzzlesAppView::ConstructHelpBrowserL() {
@@ -242,32 +246,30 @@ void CPuzzlesAppView::DynInitMenuPaneL(TInt aResourceId, CEikMenuPane* aMenuPane
     }
 }
 
-void CPuzzlesAppView::SwitchLayoutL(ELayout aLayout) {
-    if ((aLayout == ELayoutGameList && iGameList->IsVisible())
-        || (aLayout == ELayoutHelp && iHelpBr && iHelpBr->IsVisible())
-        || (aLayout == ELayoutGame && iGameContainer->IsVisible())
-        || (aLayout == ELayoutGameParameters && iGameSettings && iGameSettings->IsVisible())
-    ) {
-        return;
+void CPuzzlesAppView::PushLayoutL(ELayout aLayout) {
+    // check recursive layout
+    for (int i = 0; i <= iCurrentLayout; ++i) {
+        if (aLayout == iLayoutStack[i]) {
+            Panic(EPuzzlesPanicInvalidLayout);
+        }
     }
     
-    if (aLayout != ELayoutHelp) {
-        FreeHelpBrowser();
-    }
-    if (aLayout != ELayoutGame) {
-        iGameContainer->MakeVisible(EFalse);
-    }
-    if (aLayout != ELayoutGameList) {
-        iGameList->ScrollBarFrame()->SetScrollBarVisibilityL(CEikScrollBarFrame::EOff, CEikScrollBarFrame::EOff);
-        iGameList->MakeVisible(EFalse);
-    }
-    if (aLayout != ELayoutGameParameters) {
-        FreeGameParameters();
-    }
+    LeaveLayoutL();
+    EnterLayoutL(aLayout, ETrue);
+    
+    iLayoutStack[++iCurrentLayout] = aLayout;
+}
+
+void CPuzzlesAppView::EnterLayoutL(ELayout aLayout, TBool aCreate) {
+    int currentLayout = GetCurrentLayout();
     
     switch (aLayout) {
         case ELayoutHelp:
-            ConstructHelpBrowserL();
+            if (aCreate) {
+                ConstructHelpBrowserL();
+            } else {
+                iHelpBr->MakeVisible(ETrue);
+            }
             iAppUi->Cba()->SetCommandSetL(R_HELP_SOFTKEYS_BACK_CLOSE);
             break;
         case ELayoutGame:
@@ -297,7 +299,11 @@ void CPuzzlesAppView::SwitchLayoutL(ELayout aLayout) {
             }
             break;
         case ELayoutGameParameters:
-            ConstructGameParametersL();
+            if (aCreate) {
+                ConstructGameParametersL();
+            } else {
+                iGameSettings->MakeVisible(ETrue);
+            }
             iAppUi->Cba()->SetCommandSetL(R_AVKON_SOFTKEYS_OK_CANCEL);
             break;
     }
@@ -311,6 +317,45 @@ void CPuzzlesAppView::SwitchLayoutL(ELayout aLayout) {
     
     iAppUi->Cba()->DrawDeferred();
     iAppUi->HandleStatusPaneSizeChange();
+}
+
+void CPuzzlesAppView::LeaveLayoutL() {
+    switch (GetCurrentLayout()) {
+        case ELayoutHelp:
+            iHelpBr->MakeVisible(EFalse);
+            break;
+            
+        case ELayoutGame:
+            iGameContainer->MakeVisible(EFalse);
+            break;
+            
+        case ELayoutGameList:
+            iGameList->ScrollBarFrame()->SetScrollBarVisibilityL(CEikScrollBarFrame::EOff, CEikScrollBarFrame::EOff);
+            iGameList->MakeVisible(EFalse);
+            break;
+        
+        case ELayoutGameParameters:
+            iGameSettings->MakeVisible(EFalse);
+            break;
+    }
+}
+
+void CPuzzlesAppView::PopLayoutL() {
+    LeaveLayoutL();
+    
+    switch (GetCurrentLayout()) {
+        case ELayoutHelp:
+            FreeHelpBrowser();
+            break;
+        
+        case ELayoutGameParameters:
+            FreeGameParameters();
+            break;
+    }
+    
+    --iCurrentLayout;
+    
+    EnterLayoutL(GetCurrentLayout(), EFalse);
 }
 
 void CPuzzlesAppView::FreeGameParameters() {
@@ -355,7 +400,7 @@ void CPuzzlesAppView::ConstructGameParametersL() {
         }
     }
     
-    iGameSettings = new (ELeave) CAknSettingItemList;
+    iGameSettings = new (ELeave) CAknSettingItemList();
     CleanupStack::PushL(iGameSettings);
     iGameSettings->SetContainerWindowL(*this);
     iGameSettings->ConstructFromResourceL(R_ENTRY_SETTINGS_LIST);
@@ -488,6 +533,8 @@ void CPuzzlesAppView::ConstructGameParametersL() {
     iGameSettings->SetRect(Rect());
     iGameSettings->ListBox()->SetRect(Rect());
     iGameSettings->ActivateL();
+    
+    iGameSettings->SetObserver(this);
 }
 
 void CPuzzlesAppView::SelectGame() {
@@ -496,7 +543,7 @@ void CPuzzlesAppView::SelectGame() {
     const game *thegame = gamelist[sel];
     iGameContainer->SetGame(thegame);
     iGameContainer->LoadOrNewGame();
-    SwitchLayoutL(ELayoutGame);
+    PopLayoutL();
     iAppUi->AppConfig().SetLastSelectedGame(thegame->name);
 }
 
@@ -508,8 +555,7 @@ TBool CPuzzlesAppView::ShowHelp(const char *topic) {
     const char *t;
     TPath helpFile;
     
-    iBackToGame = iGameContainer && iGameContainer->IsVisible();
-    SwitchLayoutL(ELayoutHelp);
+    PushLayoutL(ELayoutHelp);
     
     helpFile.Zero();
     helpFile.Append(KResources);
@@ -558,72 +604,83 @@ TBool CPuzzlesAppView::HandleCommandL(TInt aCommand) {
         }
     }
     
-    if (aCommand == ECommandSelectGame) {
-        if (iGameList->IsVisible()) {
-            SelectGame();
-        } else {
-            SwitchLayoutL(ELayoutGameList);
-        }
-        return ETrue;
-    }
-    
-    if (aCommand == EAknSoftkeyClose) {
-        if (iHelpBr) {
-            SwitchLayoutL(iBackToGame ? ELayoutGame : ELayoutGameList );
-            return ETrue;
-        }
-    }
-    
-    if (aCommand == EAknSoftkeyBack) {
-        if (iHelpBr) {
-            if (iHelpBr->NavigationAvailable(TBrCtlDefs::ENavigationBack)) {
-                iHelpBr->HandleCommandL(TBrCtlDefs::ECommandIdBase + TBrCtlDefs::ECommandBack);
-            }
-        }
-        else if (iGameList->IsVisible()) {
-            SwitchLayoutL(ELayoutGame);
-        }
-        else {
-            SwitchLayoutL(ELayoutGameList);
-        }
-        return ETrue;
-    }
-    
-    if (aCommand == EAknSoftkeyCancel) {
-        SwitchLayoutL(ELayoutGame);
-        return ETrue;
-    }
-    
-    if (aCommand == EAknSoftkeyOk) {
-        iGameSettings->StoreSettingsL();
-        
-        TBuf8<50> str8;
-        for (int i = 0; i < iConfigLen; ++i) {
-            switch (iConfig[i].type) {
-                case C_STRING:
-                    sfree(iConfig[i].sval);
-                    str8.Copy(*iConfigValues[i].v.iStr);
-                    iConfig[i].sval = dupstr((char*)str8.PtrZ());
-                    break;
+    switch (aCommand) {
+        case ECommandSelectGame:
+            switch (GetCurrentLayout()) {
+                case ELayoutGameList:
+                    SelectGame();
+                    return ETrue;
                     
-                case C_BOOLEAN:
-                case C_CHOICES:
-                    iConfig[i].ival = iConfigValues[i].v.iInt;
-                    break;
+                case ELayoutGame:
+                    PushLayoutL(ELayoutGameList);
+                    return ETrue;
             }
-        }
-        
-        char *error = iGameContainer->SetGameConfig(iConfig);
-        if (error != NULL) {
-            TBuf<100> bError;
-            bError.Copy(TPtrC8((TUint8*)error));
+            break;
+    
+        case EAknSoftkeyClose:
+            switch (GetCurrentLayout()) {
+                case ELayoutHelp:
+                    PopLayoutL();
+                    return ETrue;
+            }
+            break;
             
-            CAknErrorNote *dlg = new (ELeave) CAknErrorNote(ETrue);
-            dlg->ExecuteLD(bError);
-        } else {
-            SwitchLayoutL(ELayoutGame);
-        }
-        return ETrue;
+        case EAknSoftkeyBack:
+            switch (GetCurrentLayout()) {
+                case ELayoutHelp:
+                    if (iHelpBr->NavigationAvailable(TBrCtlDefs::ENavigationBack)) {
+                        iHelpBr->HandleCommandL(TBrCtlDefs::ECommandIdBase + TBrCtlDefs::ECommandBack);
+                    }
+                    return ETrue;
+                    
+                case ELayoutGameList:
+                    PopLayoutL();
+                    return ETrue;
+            }
+            break;
+            
+        case EAknSoftkeyCancel:
+            switch (GetCurrentLayout()) {
+                case ELayoutGameParameters:
+                    PopLayoutL();
+                    return ETrue;
+            }
+            break;
+            
+        case EAknSoftkeyOk:
+            switch (GetCurrentLayout()) {
+                case ELayoutGameParameters:
+                    iGameSettings->StoreSettingsL();
+                
+                    TBuf8<50> str8;
+                    for (int i = 0; i < iConfigLen; ++i) {
+                        switch (iConfig[i].type) {
+                            case C_STRING:
+                                sfree(iConfig[i].sval);
+                                str8.Copy(*iConfigValues[i].v.iStr);
+                                iConfig[i].sval = dupstr((char*)str8.PtrZ());
+                                break;
+                                
+                            case C_BOOLEAN:
+                            case C_CHOICES:
+                                iConfig[i].ival = iConfigValues[i].v.iInt;
+                                break;
+                        }
+                    }
+                    
+                    char *error = iGameContainer->SetGameConfig(iConfig);
+                    if (error != NULL) {
+                        TBuf<100> bError;
+                        bError.Copy(TPtrC8((TUint8*)error));
+                        
+                        CAknErrorNote *dlg = new (ELeave) CAknErrorNote(ETrue);
+                        dlg->ExecuteLD(bError);
+                    } else {
+                        PopLayoutL();
+                    }
+                    return ETrue;
+            }
+            break;
     }
     
     return EFalse;
@@ -655,7 +712,6 @@ TKeyResponse CPuzzlesAppView::OfferKeyEventL(const TKeyEvent &aKeyEvent, TEventC
     }
     
     if (iGameSettings && iGameSettings->IsVisible()) {
-        iGameSettings->SetObserver(this);
         return iGameSettings->OfferKeyEventL(aKeyEvent, aType);
     }
     

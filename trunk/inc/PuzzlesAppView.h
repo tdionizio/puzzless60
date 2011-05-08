@@ -57,6 +57,7 @@ public: // new methods
     
 public:
     enum ELayout {
+        ELayoutNone,
         ELayoutGame,
         ELayoutGameList,
         ELayoutGameParameters,
@@ -64,16 +65,23 @@ public:
     };
     
     void SelectGame();
-    void SwitchLayoutL(ELayout aLayout);
     TBool ShowHelp(const char *topic);
+    void PushLayoutL(ELayout aLayout);
+    void PopLayoutL();
+
+private:
+    int iCurrentLayout;
+    
+    ELayout iLayoutStack[5];
+    void EnterLayoutL(ELayout aLayout, TBool aCreate);
+    void LeaveLayoutL();
+    ELayout GetCurrentLayout() { return iLayoutStack[iCurrentLayout]; }
     
 private:
     CPuzzlesAppUi *iAppUi;
     CEikColumnListBox *iGameList;
     CGameContainer *iGameContainer;
     CBrCtlInterface* iHelpBr;
-    
-    TBool iBackToGame;
     
     enum {
         KMaxTextLength = 50
