@@ -78,10 +78,12 @@ private:
     ELayout iLayoutStack[5];
     void EnterLayoutL(ELayout aLayout, TBool aCreate);
     void LeaveLayoutL();
-    ELayout GetCurrentLayout() { return iLayoutStack[iCurrentLayout]; }
     void PushLayoutL(ELayout aLayout);
     void PopLayoutL();
     
+public:
+    ELayout GetCurrentLayout() { return iLayoutStack[iCurrentLayout]; }
+
 private:
     CPuzzlesAppUi *iAppUi;
     CEikColumnListBox *iGameList;
