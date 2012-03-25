@@ -1,0 +1,23 @@
+/*
+============================================================================
+ Name		: bld.inf
+ Author	  : Tiago Dionizio
+ Copyright   : Copyright (c) 2010 - Tiago Dionizio
+ Description : This file provides the information required for building the
+				whole of a Puzzles.
+============================================================================
+*/
+
+
+PRJ_PLATFORMS
+WINSCW ARMV5 GCCE
+
+PRJ_MMPFILES
+
+
+gnumakefile Icons_scalable_dc.mk
+gnumakefile Images.mk
+gnumakefile Fonts.mk
+gnumakefile build_help.mk
+Puzzles.mmp
+
