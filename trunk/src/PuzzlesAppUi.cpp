@@ -90,31 +90,33 @@ void CPuzzlesAppUi::ConstructL() {
         EScreenNormal
 #endif
     );
-    
-    iAppView = CPuzzlesAppView::NewL(GetGameRect(), this);
-    AddToStackL(iAppView);
-    
-    TBuf8<20> lastGame;
-    iAppConfig.GetLastSelectedGame(lastGame);
-    iAppView->PushLayoutL(CPuzzlesAppView::ELayoutGame);
-    if (iAppView->GameContainer()->SelectGame(lastGame)) {
-        iAppView->GameContainer()->LoadOrNewGame();
-    } else {
-        iAppView->PushLayoutL(CPuzzlesAppView::ELayoutGameList);
-    }
-    
-    TInt orientation =
-            iAppConfig.GetScreenOrientation(EAppUiOrientationAutomatic);
+
+    TAppUiOrientation orientation = 
+            (TAppUiOrientation)iAppConfig.GetScreenOrientation(EAppUiOrientationAutomatic);
     
     switch (orientation) {
         case EAppUiOrientationPortrait:
         case EAppUiOrientationLandscape:
         case EAppUiOrientationAutomatic:
-            SetOrientationL((TAppUiOrientation)orientation);
+            CAknAppUi::SetOrientationL(orientation);
             break;
         default:
             break;
     }
+    
+    iAppView = CPuzzlesAppView::NewL(GetGameRect(), this);
+    AddToStackL(iAppView);
+    
+    iAppView->ShowGameView();
+    
+    TBuf8<20> lastGame;
+    iAppConfig.GetLastSelectedGame(lastGame);
+    if (iAppView->GameContainer()->SelectGame(lastGame)) {
+        iAppView->GameContainer()->LoadOrNewGame();
+    } else {
+        iAppView->ShowGameList();
+    }
+    
 }
 
 // -----------------------------------------------------------------------------
@@ -184,7 +186,7 @@ void CPuzzlesAppUi::DynInitMenuPaneL(TInt aResourceId, CEikMenuPane* aMenuPane) 
 void CPuzzlesAppUi::HandleTitlePaneEventL(TInt aEventID) {
     if (aEventID == EAknTitlePaneTapped) {
         if (iAppView->GetCurrentLayout() == CPuzzlesAppView::ELayoutGame) {
-            iAppView->PushLayoutL(CPuzzlesAppView::ELayoutGameList);
+            iAppView->ShowGameList();
         }
     }
 }
@@ -215,10 +217,14 @@ void CPuzzlesAppUi::HandleNaviDecoratorEventL(TInt aEventID) {
 // -----------------------------------------------------------------------------
 //
 void CPuzzlesAppUi::HandleCommandL(TInt aCommand) {
-    int preset = 0;
+    TInt preset = 0;
     if (aCommand >= ECommandGameTypePreset && aCommand < ECommandGameTypeCustom) {
         preset = aCommand - ECommandGameTypePreset;
         aCommand = ECommandGameTypePreset;
+    }
+    else if (aCommand >= ECommandGameTypeCustom && aCommand < ECommandGameTypeCustomLast) {
+        preset = aCommand - ECommandGameTypeCustom;
+        aCommand = ECommandGameTypeCustom;
     }
     
     switch (aCommand) {
@@ -234,7 +240,7 @@ void CPuzzlesAppUi::HandleCommandL(TInt aCommand) {
             break;
             
         case ECommandGameTypeCustom: {
-            iAppView->PushLayoutL(CPuzzlesAppView::ELayoutGameParameters);
+            iAppView->ShowGameSettings(preset);
             break;
         }
             

@@ -96,7 +96,7 @@
 
 struct vector { int a, b, c, d; };
 
-static vector v_origin()
+static vector v_origin(void)
 {
     vector v;
     v.a = v.b = v.c = v.d = 0;
@@ -107,7 +107,7 @@ static vector v_origin()
  * draw an isoceles triangle centred on the X axis. */
 #ifdef TEST_VECTORS
 
-static vector v_unit()
+static vector v_unit(void)
 {
     vector v;
 
@@ -219,7 +219,7 @@ static const char *v_debug(vector v)
  * Tiling routines.
  */
 
-vector xform_coord(vector vo, int shrink, vector vtrans, int ang)
+static vector xform_coord(vector vo, int shrink, vector vtrans, int ang)
 {
     if (shrink < 0)
         vo = v_shrinkphi(vo);
@@ -434,7 +434,7 @@ void penrose_count_tiles(int depth, int *nlarge, int *nsmall)
  * (later mail: this is an overestimate by about 5%)
  */
 
-int penrose(penrose_state *state, int which)
+int penrose(penrose_state *state, int which, int angle)
 {
     vector vo = v_origin();
     vector vb = v_origin();
@@ -443,6 +443,9 @@ int penrose(penrose_state *state, int which)
     vo = v_shrinkphi(v_shrinkphi(vo));
 
     vb.b = state->start_size;
+
+    vo = v_rotate(vo, angle);
+    vb = v_rotate(vb, angle);
 
     if (which == PENROSE_P2)
         return penrose_p2_large(state, 0, 1, vo, vb);
@@ -539,7 +542,7 @@ int test_cb(penrose_state *state, vector *vs, int n, int depth)
     return 0;
 }
 
-void usage_exit()
+void usage_exit(void)
 {
     fprintf(stderr, "Usage: penrose-test [--recursion] P2|P3 SIZE DEPTH\n");
     exit(1);

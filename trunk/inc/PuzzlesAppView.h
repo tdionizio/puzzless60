@@ -47,6 +47,7 @@ private:
     void FreeGameParameters();
     void FreeHelpBrowser();
     
+    void ValidateAndSaveGameSettings();
 
 public: // new methods
     
@@ -60,15 +61,17 @@ public:
         ELayoutNone,
         ELayoutGame,
         ELayoutGameList,
-        ELayoutGameParameters,
+        ELayoutGameSettings,
         ELayoutHelp
     };
     
     void SelectGame();
     TBool ShowHelp(const char *topic);
-    void PushLayoutL(ELayout aLayout);
-    void PopLayoutL();
-
+    
+    void ShowGameView();
+    void ShowGameList();
+    void ShowGameSettings(TInt aIndex);
+    
 private:
     int iCurrentLayout;
     
@@ -76,12 +79,17 @@ private:
     void EnterLayoutL(ELayout aLayout, TBool aCreate);
     void LeaveLayoutL();
     ELayout GetCurrentLayout() { return iLayoutStack[iCurrentLayout]; }
+    void PushLayoutL(ELayout aLayout);
+    void PopLayoutL();
     
 private:
     CPuzzlesAppUi *iAppUi;
     CEikColumnListBox *iGameList;
     CGameContainer *iGameContainer;
     CBrCtlInterface* iHelpBr;
+    
+    CGameProfile *iGameProfiles;
+    CGameProfile *iCurrentGameProfile;
     
     enum {
         KMaxTextLength = 50
@@ -90,12 +98,18 @@ private:
         union {
             RBuf *iStr;
             TInt iInt;
+            TBool iBool;
         } v;
     } TConfigValue;
     
     config_item *iConfig;
     TInt iConfigLen;
     TConfigValue *iConfigValues;
+    TBuf<KMaxTextLength> iConfigName;
+    TBool iConfigDelete;
+    // profile being edited
+    CGameProfile *iConfigProfile;
+    
     CAknSettingItemList* iGameSettings;
 };
 

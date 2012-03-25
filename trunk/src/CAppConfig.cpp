@@ -1,5 +1,6 @@
 
 #include "CAppConfig.h"
+#include "CGameProfile.h"
 
 extern "C" {
 #include "puzzles.h"

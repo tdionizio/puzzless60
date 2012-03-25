@@ -1331,12 +1331,13 @@ char *midend_solve(midend *me)
 	me->anim_time = 0.0;
 	midend_finish_move(me);
     }
-    midend_redraw(me);
+    if (me->drawing)
+        midend_redraw(me);
     midend_set_timer(me);
     return NULL;
 }
 
-int midend_is_solved(midend *me)
+int midend_status(midend *me)
 {
     /*
      * We should probably never be called when the state stack has no
@@ -1347,8 +1348,10 @@ int midend_is_solved(midend *me)
      * practically, a user whose midend has been left in that state
      * probably _does_ want the 'new game' option to be prominent.
      */
-    return (me->statepos == 0 ||
-            me->ourgame->is_solved(me->states[me->statepos-1].state));
+    if (me->statepos == 0)
+        return +1;
+
+    return me->ourgame->status(me->states[me->statepos-1].state);
 }
 
 char *midend_rewrite_statusbar(midend *me, char *text)

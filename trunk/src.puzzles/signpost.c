@@ -1496,7 +1496,7 @@ static char *interpret_move(game_state *state, game_ui *ui, game_drawstate *ds,
             if (state->prev[si] == -1 && state->next[si] == -1)
                 return "";
             sprintf(buf, "%c%d,%d",
-                    ui->drag_is_from ? 'C' : 'X', ui->sx, ui->sy);
+                    (int)(ui->drag_is_from ? 'C' : 'X'), ui->sx, ui->sy);
             return dupstr(buf);
         }
 
@@ -1515,7 +1515,7 @@ static char *interpret_move(game_state *state, game_ui *ui, game_drawstate *ds,
         if (state->prev[si] == -1 && state->next[si] == -1)
             return "";
         sprintf(buf, "%c%d,%d",
-                (button == 'x') ? 'C' : 'X', ui->cx, ui->cy);
+                (int)((button == 'x') ? 'C' : 'X'), ui->cx, ui->cy);
         return dupstr(buf);
     }
 
@@ -1812,8 +1812,8 @@ static int num2col(game_drawstate *ds, int num)
 {
     int set = num / (ds->n+1);
 
-    if (num <= 0) return COL_B0;
-    return COL_B0 + (set % 16);
+    if (num <= 0 || set == 0) return COL_B0;
+    return COL_B0 + 1 + ((set-1) % 15);
 }
 
 #define ARROW_HALFSZ (7 * TILE_SIZE / 32)
@@ -1930,19 +1930,30 @@ static void tile_redraw(drawing *dr, game_drawstate *ds, int tx, int ty,
     if (!empty) {
         int set = (num <= 0) ? 0 : num / (ds->n+1);
 
+        char *p = buf;
         if (set == 0 || num <= 0) {
             sprintf(buf, "%d", num);
         } else {
             int n = num % (ds->n+1);
+            p += sizeof(buf) - 1;
 
-            if (n == 0)
-                sprintf(buf, "%c", (int)(set+'a'-1));
-            else
-                sprintf(buf, "%c+%d", (int)(set+'a'-1), n);
+            if (n != 0) {
+                sprintf(buf, "+%d", n);  /* Just to get the length... */
+                p -= strlen(buf);
+                sprintf(p, "+%d", n);
+            } else {
+                *p = '\0';
+            }
+            do {
+                set--;
+                p--;
+                *p = (char)((set % 26)+'a');
+                set /= 26;
+            } while (set);
         }
-        textsz = min(2*asz, (TILE_SIZE - 2 * cb) / (int)strlen(buf));
+        textsz = min(2*asz, (TILE_SIZE - 2 * cb) / (int)strlen(p));
         draw_text(dr, tx + cb, ty + TILE_SIZE/4, FONT_VARIABLE, textsz,
-                  ALIGN_VCENTRE | ALIGN_HLEFT, textcol, buf);
+                  ALIGN_VCENTRE | ALIGN_HLEFT, textcol, p);
     }
 
     if (print_ink < 0) {
@@ -2083,11 +2094,33 @@ static void game_redraw(drawing *dr, game_drawstate *ds, game_state *oldstate,
             if (state->nums[i] != ds->nums[i] ||
                 f != ds->f[i] || dirp != ds->dirp[i] ||
                 force || !ds->started) {
+                int sign;
+                {
+                    /*
+                     * Trivial and foolish configurable option done on
+                     * purest whim. With this option enabled, the
+                     * victory flash is done by rotating each square
+                     * in the opposite direction from its immediate
+                     * neighbours, so that they behave like a field of
+                     * interlocking gears. With it disabled, they all
+                     * rotate in the same direction. Choose for
+                     * yourself which is more brain-twisting :-)
+                     */
+                    static int gear_mode = -1;
+                    if (gear_mode < 0) {
+                        char *env = getenv("SIGNPOST_GEARS");
+                        gear_mode = (env && (env[0] == 'y' || env[0] == 'Y'));
+                    }
+                    if (gear_mode)
+                        sign = 1 - 2 * ((x ^ y) & 1);
+                    else
+                        sign = 1;
+                }
                 tile_redraw(dr, ds,
                             BORDER + x * TILE_SIZE,
                             BORDER + y * TILE_SIZE,
                             state->dirs[i], dirp, state->nums[i], f,
-                            angle_offset, -1);
+                            sign * angle_offset, -1);
                 ds->nums[i] = state->nums[i];
                 ds->f[i] = f;
                 ds->dirp[i] = dirp;
@@ -2122,9 +2155,9 @@ static float game_flash_length(game_state *oldstate, game_state *newstate,
         return 0.0F;
 }
 
-static int game_is_solved(game_state *state)
+static int game_status(game_state *state)
 {
-    return state->completed;
+    return state->completed ? +1 : 0;
 }
 
 static int game_timing_state(game_state *state, game_ui *ui)
@@ -2208,7 +2241,7 @@ const struct game thegame = {
     game_redraw,
     game_anim_length,
     game_flash_length,
-    game_is_solved,
+    game_status,
     TRUE, FALSE, game_print_size, game_print,
     FALSE,			       /* wants_statusbar */
     FALSE, game_timing_state,
