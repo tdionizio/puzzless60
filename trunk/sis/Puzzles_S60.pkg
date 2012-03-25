@@ -10,7 +10,7 @@
 &EN
 
 ; standard SIS file header
-#{"Puzzles"},(0xA000EF77),1,5,9163
+#{"Puzzles"},(0xA000EF77),1,5,9411
 
 ;Localised Vendor name
 %{"Tiago Dionizio-EN"}
@@ -79,6 +79,7 @@
 "..\help\html\net.html" - "!:\resource\apps\0xa000ef77\net.html"
 "..\help\html\netslide.html" - "!:\resource\apps\0xa000ef77\netslide.html"
 "..\help\html\pattern.html" - "!:\resource\apps\0xa000ef77\pattern.html"
+"..\help\html\pearl.html" - "!:\resource\apps\0xa000ef77\pearl.html"
 "..\help\html\pegs.html" - "!:\resource\apps\0xa000ef77\pegs.html"
 "..\help\html\range.html" - "!:\resource\apps\0xa000ef77\range.html"
 "..\help\html\rectangles.html" - "!:\resource\apps\0xa000ef77\rectangles.html"
