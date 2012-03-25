@@ -76,7 +76,7 @@ void CPuzzlesAppView::ConstructL(const TRect& aRect, CPuzzlesAppUi *aAppUi) {
     // Set the windows size
     SetRect(aRect);
     
-    RDebug::Printf("Version: %04x", iAppUi->GetPlatformVersionL());
+    // RDebug::Printf("Version: %04x", iAppUi->GetPlatformVersionL());
     
     // Activate the window, which makes it ready to be drawn
     ActivateL();
@@ -111,6 +111,7 @@ void CPuzzlesAppView::ConstructGameListL() {
         EMbmPuzzles_0xa000ef77Magnets, EMbmPuzzles_0xa000ef77Map,
         EMbmPuzzles_0xa000ef77Mines, EMbmPuzzles_0xa000ef77Net,
         EMbmPuzzles_0xa000ef77Netslide, EMbmPuzzles_0xa000ef77Pattern,
+        EMbmPuzzles_0xa000ef77Pearl,
         EMbmPuzzles_0xa000ef77Pegs, EMbmPuzzles_0xa000ef77Range,
         EMbmPuzzles_0xa000ef77Rect,
         EMbmPuzzles_0xa000ef77Samegame, EMbmPuzzles_0xa000ef77Signpost,
@@ -246,6 +247,18 @@ void CPuzzlesAppView::DynInitMenuPaneL(TInt aResourceId, CEikMenuPane* aMenuPane
     }
 }
 
+void CPuzzlesAppView::ShowGameView() {
+    ASSERT(iCurrentLayout == 0);
+    PushLayoutL(ELayoutGame);
+}
+
+void CPuzzlesAppView::ShowGameList() {
+    PushLayoutL(ELayoutGameList);
+}
+void CPuzzlesAppView::ShowGameSettings(TInt aPreset) {
+    PushLayoutL(ELayoutGameSettings);
+}
+
 void CPuzzlesAppView::PushLayoutL(ELayout aLayout) {
     // check recursive layout
     for (int i = 0; i <= iCurrentLayout; ++i) {
@@ -298,7 +311,7 @@ void CPuzzlesAppView::EnterLayoutL(ELayout aLayout, TBool aCreate) {
                 iAppUi->Cba()->SetCommandSetL(R_AVKON_SOFTKEYS_OPTIONS_EXIT);
             }
             break;
-        case ELayoutGameParameters:
+        case ELayoutGameSettings:
             if (aCreate) {
                 ConstructGameParametersL();
             } else {
@@ -308,7 +321,7 @@ void CPuzzlesAppView::EnterLayoutL(ELayout aLayout, TBool aCreate) {
             break;
     }
     
-    if ((aLayout == ELayoutGame || aLayout == ELayoutGameParameters)
+    if ((aLayout == ELayoutGame || aLayout == ELayoutGameSettings)
     && iGameContainer && iGameContainer->HaveGame()) {
         iGameContainer->UpdateGameTitle();
     } else {
@@ -334,7 +347,7 @@ void CPuzzlesAppView::LeaveLayoutL() {
             iGameList->MakeVisible(EFalse);
             break;
         
-        case ELayoutGameParameters:
+        case ELayoutGameSettings:
             iGameSettings->MakeVisible(EFalse);
             break;
     }
@@ -348,7 +361,7 @@ void CPuzzlesAppView::PopLayoutL() {
             FreeHelpBrowser();
             break;
         
-        case ELayoutGameParameters:
+        case ELayoutGameSettings:
             FreeGameParameters();
             break;
     }
@@ -412,6 +425,23 @@ void CPuzzlesAppView::ConstructGameParametersL() {
     TBool isNumberedStyle = iGameSettings->IsNumberedStyle();
     CArrayPtr<CGulIcon>* icons = iGameSettings->ListBox()->ItemDrawer()->FormattedCellData()->IconArray();;
     
+#if 0
+    {
+        _LIT(KProfileName, "Profile Name");
+        _LIT(KProfileDefaultName, "custom");
+        
+        iConfigName.Copy(KProfileDefaultName);
+        
+        CAknTextSettingItem* item = new (ELeave) CAknTextSettingItem(-1, iConfigName);
+        CleanupStack::PushL(item);
+        
+        // The same resource id can be used for multiple text setting pages.
+        item->ConstructL(isNumberedStyle, -1, KProfileName, icons, R_TEXT_SETTING_PAGE, -1);
+        item->SetEmptyItemTextL(KProfileDefaultName);
+        iGameSettings->SettingItemArray()->AppendL(item);
+        CleanupStack::Pop(item);
+    }
+#endif
     
     _LIT(KEmpty, "Empty");
     TBuf<100> name;
@@ -504,11 +534,11 @@ void CPuzzlesAppView::ConstructGameParametersL() {
             CleanupStack::Pop(item);
         }
         else if (iConfig[i].type == C_BOOLEAN) {
-            iConfigValues[i].v.iInt = iConfig[i].ival ? 1 : 0;
+            iConfigValues[i].v.iBool = iConfig[i].ival ? ETrue : EFalse;
             
             /*Binary popup setting item*/
             CAknBinaryPopupSettingItem* item = new (ELeave) CAknBinaryPopupSettingItem(
-                i, iConfigValues[i].v.iInt
+                i, iConfigValues[i].v.iBool
             );
             CleanupStack::PushL(item);
             
@@ -524,6 +554,32 @@ void CPuzzlesAppView::ConstructGameParametersL() {
 #endif
         }
     }
+    
+#if 0
+    {
+        _LIT(KDeleteProfile, "Delete Profile");
+        iConfigDelete = EFalse;
+        
+        CAknBinaryPopupSettingItem* item = new (ELeave) CAknBinaryPopupSettingItem(
+            i, iConfigDelete
+        );
+        CleanupStack::PushL(item);
+        
+        item->ConstructL(
+                isNumberedStyle, 
+                iConfigLen, 
+                KDeleteProfile, 
+                icons, 
+                R_BINARY_SETTING_PAGE, 
+                -1, 
+                0, 
+                R_BINARY_TEXTS
+        );
+
+        iGameSettings->SettingItemArray()->AppendL(item);
+        CleanupStack::Pop(item);
+    }
+#endif
 
     // Required when there is only one setting item.
     iGameSettings->SettingItemArray()->RecalculateVisibleIndicesL();
@@ -589,6 +645,50 @@ TBool CPuzzlesAppView::ShowHelp(const char *topic) {
     return ETrue;
 }
 
+void CPuzzlesAppView::ValidateAndSaveGameSettings() {
+    iGameSettings->StoreSettingsL();
+    
+    if (iConfigDelete) {
+        _LIT(KConfirmTitle, "Delete Profile?");
+        
+        if (iEikonEnv->QueryWinL(KConfirmTitle, KNullDesC)) {
+            // close dialog, delete profile and do nothing
+            PopLayoutL();
+        }
+        return;
+    }
+    
+    TBuf8<50> str8;
+    for (int i = 0; i < iConfigLen; ++i) {
+        switch (iConfig[i].type) {
+            case C_STRING:
+                sfree(iConfig[i].sval);
+                str8.Copy(*iConfigValues[i].v.iStr);
+                iConfig[i].sval = dupstr((char*)str8.PtrZ());
+                break;
+                
+            case C_BOOLEAN:
+                iConfig[i].ival = iConfigValues[i].v.iBool;
+                break;
+                
+            case C_CHOICES:
+                iConfig[i].ival = iConfigValues[i].v.iInt;
+                break;
+        }
+    }
+    
+    char *error = iGameContainer->SetGameConfig(iConfig);
+    if (error != NULL) {
+        TBuf<100> bError;
+        bError.Copy(TPtrC8((TUint8*)error));
+        
+        CAknErrorNote *dlg = new (ELeave) CAknErrorNote(ETrue);
+        dlg->ExecuteLD(bError);
+    } else {
+        PopLayoutL();
+    }
+
+}
 
 TBool CPuzzlesAppView::HandleCommandL(TInt aCommand) {
     switch (aCommand) {
@@ -641,7 +741,7 @@ TBool CPuzzlesAppView::HandleCommandL(TInt aCommand) {
             
         case EAknSoftkeyCancel:
             switch (GetCurrentLayout()) {
-                case ELayoutGameParameters:
+                case ELayoutGameSettings:
                     PopLayoutL();
                     return ETrue;
             }
@@ -649,35 +749,8 @@ TBool CPuzzlesAppView::HandleCommandL(TInt aCommand) {
             
         case EAknSoftkeyOk:
             switch (GetCurrentLayout()) {
-                case ELayoutGameParameters:
-                    iGameSettings->StoreSettingsL();
-                
-                    TBuf8<50> str8;
-                    for (int i = 0; i < iConfigLen; ++i) {
-                        switch (iConfig[i].type) {
-                            case C_STRING:
-                                sfree(iConfig[i].sval);
-                                str8.Copy(*iConfigValues[i].v.iStr);
-                                iConfig[i].sval = dupstr((char*)str8.PtrZ());
-                                break;
-                                
-                            case C_BOOLEAN:
-                            case C_CHOICES:
-                                iConfig[i].ival = iConfigValues[i].v.iInt;
-                                break;
-                        }
-                    }
-                    
-                    char *error = iGameContainer->SetGameConfig(iConfig);
-                    if (error != NULL) {
-                        TBuf<100> bError;
-                        bError.Copy(TPtrC8((TUint8*)error));
-                        
-                        CAknErrorNote *dlg = new (ELeave) CAknErrorNote(ETrue);
-                        dlg->ExecuteLD(bError);
-                    } else {
-                        PopLayoutL();
-                    }
+                case ELayoutGameSettings:
+                    ValidateAndSaveGameSettings();
                     return ETrue;
             }
             break;

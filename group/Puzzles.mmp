@@ -31,6 +31,7 @@ SOURCE PuzzlesDrawingApi.cpp
 SOURCE CGameView.cpp
 SOURCE CGameContainer.cpp
 SOURCE CAppConfig.cpp
+SOURCE CGameProfile.cpp
 
 SOURCEPATH ..\src.puzzles
 SOURCE dsf.c galaxies.c malloc.c 
@@ -42,7 +43,7 @@ SOURCE maxflow.c mines.c net.c netslide.c obfusc.c pattern.c
 SOURCE pegs.c range.c rect.c samegame.c sixteen.c slant.c solo.c
 SOURCE tents.c tree234.c twiddle.c unequal.c towers.c
 SOURCE untangle.c printing.c magnets.c singles.c signpost.c
-SOURCE penrose.c
+SOURCE penrose.c loopgen.c tdq.c pearl.c
 
 
 SOURCEPATH		..\data

@@ -1473,7 +1473,7 @@ static int solver_killer_sums(struct solver_usage *usage, int b,
     }
     assert(nsquares > 0);
 
-    if (nsquares > 4)
+    if (nsquares < 2 || nsquares > 4)
 	return 0;
 
     if (!cage_is_region) {
@@ -2041,7 +2041,7 @@ static void solver(int cr, struct block_structure *blocks,
 					     );
 		if (ret > 0) {
 		    changed = TRUE;
-		    kdiff = max(kdiff, DIFF_KINTERSECT);
+		    kdiff = max(kdiff, DIFF_KSUMS);
 		} else if (ret < 0) {
 		    diff = DIFF_IMPOSSIBLE;
 		    goto got_result;
@@ -2402,7 +2402,7 @@ static void solver(int cr, struct block_structure *blocks,
 		    scratch->indexlist[i*cr+n-1] = cubepos2(diag1(i), n);
             ret = solver_set(usage, scratch, scratch->indexlist
 #ifdef STANDALONE_SOLVER
-			     , "set elimination, \\-diagonal"
+			     , "set elimination, /-diagonal"
 #endif
 			     );
 	    if (ret < 0) {
@@ -5187,9 +5187,9 @@ static float game_flash_length(game_state *oldstate, game_state *newstate,
     return 0.0F;
 }
 
-static int game_is_solved(game_state *state)
+static int game_status(game_state *state)
 {
-    return state->completed;
+    return state->completed ? +1 : 0;
 }
 
 static int game_timing_state(game_state *state, game_ui *ui)
@@ -5511,7 +5511,7 @@ const struct game thegame = {
     game_redraw,
     game_anim_length,
     game_flash_length,
-    game_is_solved,
+    game_status,
     TRUE, FALSE, game_print_size, game_print,
     FALSE,			       /* wants_statusbar */
     FALSE, game_timing_state,
@@ -5578,7 +5578,7 @@ int main(int argc, char **argv)
 	       dlev.diff==DIFF_IMPOSSIBLE ? "Impossible (no solution exists)":
 	       "INTERNAL ERROR: unrecognised difficulty code");
 	if (p->killer)
-	    printf("Killer diffculty: %s\n",
+	    printf("Killer difficulty: %s\n",
 		   dlev.kdiff==DIFF_KSINGLE ? "Trivial (single square cages only)":
 		   dlev.kdiff==DIFF_KMINMAX ? "Simple (maximum sum analysis required)":
 		   dlev.kdiff==DIFF_KSUMS ? "Intermediate (sum possibilities)":

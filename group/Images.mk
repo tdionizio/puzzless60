@@ -63,6 +63,7 @@ $(ICONTARGETFILENAME): Images.mk \
 		$(ICONDIR)\singles.bmp \
 		$(ICONDIR)\signpost.bmp \
 		$(ICONDIR)\range.bmp \
+		$(ICONDIR)\pearl.bmp \
 		$(ICONDIR)\untangle.bmp
 	mifconv $(ICONTARGETFILENAME)  \
 		 /H$(HEADERFILENAME)  \
@@ -85,6 +86,7 @@ $(ICONTARGETFILENAME): Images.mk \
 		 $(C24) $(ICONDIR)\net.bmp  \
 		 $(C24) $(ICONDIR)\netslide.bmp  \
 		 $(C24) $(ICONDIR)\pattern.bmp  \
+		 $(C24) $(ICONDIR)\pearl.bmp \
 		 $(C24) $(ICONDIR)\pegs.bmp  \
 		 $(C24) $(ICONDIR)\range.bmp  \
 		 $(C24) $(ICONDIR)\rect.bmp  \

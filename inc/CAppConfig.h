@@ -7,6 +7,7 @@
 #include <f32file.h>    // RFs
 
 class CFileStore;
+class CGameProfile;
 
 typedef struct midend midend;
 typedef struct game game;
@@ -47,6 +48,9 @@ public:
     
     void SaveGame(midend *aME, const game *aGame);
     char* LoadGame(midend *aME, const game *aGame);
+    
+    void SaveProfile(const game *aGame, const CGameProfile &aProfile);
+    void LoadProfiles(const game *aGame, CGameProfile **aProfile);
     
 private:
     RFs iFsSession;
@@ -90,7 +94,7 @@ private:
     void GetConfigL(const TDesC &aKey, const TConfig &aConfig);
     void SetConfigL(const TDesC &aKey, const TConfig &aConfig);
     
-
+    
     void SaveGameL(midend *aME, const game *aGame);
     char* LoadGameL(midend *aME, const game *aGame);
 };

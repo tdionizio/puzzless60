@@ -9,6 +9,7 @@ enum TPuzzlesIds
 	{
     ECommandGameTypePreset = 0x6001, // start value must not be 0
     ECommandGameTypeCustom = 0x6100,
+    ECommandGameTypeCustomLast = 0x6200,
     
 	ECommandSelectGame,
     ECommandGame,

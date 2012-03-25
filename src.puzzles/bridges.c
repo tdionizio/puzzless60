@@ -513,7 +513,6 @@ static int island_impossible(struct island *is, int strict)
 {
     int curr = island_countbridges(is), nspc = is->count - curr, nsurrspc;
     int i, poss;
-    grid_type v;
     struct island *is_orth;
 
     if (nspc < 0) {
@@ -533,7 +532,6 @@ static int island_impossible(struct island *is, int strict)
         int ifree, dx = is->adj.points[i].dx;
 
         if (!is->adj.points[i].off) continue;
-        v = GRID(is->state, is->adj.points[i].x, is->adj.points[i].y);
         poss = POSSIBLES(is->state, dx,
                          is->adj.points[i].x, is->adj.points[i].y);
         if (poss == 0) continue;
@@ -1507,11 +1505,11 @@ static int solve_island_stage3(struct island *is, int *didsth_r)
             if (maxb == 0) {
                 debug(("...adding NOLINE.\n"));
                 solve_join(is, i, -1, 0); /* we can't have any bridges here. */
-                didsth = 1;
             } else {
                 debug(("...setting maximum\n"));
                 solve_join(is, i, maxb, 1);
             }
+            didsth = 1;
         }
         map_update_possibles(is->state);
     }
@@ -2715,9 +2713,9 @@ static float game_flash_length(game_state *oldstate, game_state *newstate,
     return 0.0F;
 }
 
-static int game_is_solved(game_state *state)
+static int game_status(game_state *state)
 {
-    return state->completed;
+    return state->completed ? +1 : 0;
 }
 
 static int game_timing_state(game_state *state, game_ui *ui)
@@ -2823,7 +2821,7 @@ const struct game thegame = {
     game_redraw,
     game_anim_length,
     game_flash_length,
-    game_is_solved,
+    game_status,
     TRUE, FALSE, game_print_size, game_print,
     FALSE,			       /* wants_statusbar */
     FALSE, game_timing_state,

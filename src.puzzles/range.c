@@ -49,7 +49,7 @@
 
 #define setmember(obj, field) ( (obj) . field = field )
 
-char *nfmtstr(int n, char *fmt, ...) {
+static char *nfmtstr(int n, char *fmt, ...) {
     va_list va;
     char *ret = snewn(n+1, char);
     va_start(va, fmt);
@@ -83,7 +83,7 @@ struct game_state {
 };
 
 #define DEFAULT_PRESET 0
-static struct game_params presets[] = {{9, 6}, {12, 8}, {13, 9}, {16, 11}};
+static struct game_params range_presets[] = {{9, 6}, {12, 8}, {13, 9}, {16, 11}};
 /* rationale: I want all four combinations of {odd/even, odd/even}, as
  * they play out differently with respect to two-way symmetry.  I also
  * want them to be generated relatively fast yet still be large enough
@@ -95,7 +95,7 @@ static struct game_params presets[] = {{9, 6}, {12, 8}, {13, 9}, {16, 11}};
 static game_params *default_params(void)
 {
     game_params *ret = snew(game_params);
-    *ret = presets[DEFAULT_PRESET]; /* structure copy */
+    *ret = range_presets[DEFAULT_PRESET]; /* structure copy */
     return ret;
 }
 
@@ -108,10 +108,15 @@ static game_params *dup_params(game_params *params)
 
 static int game_fetch_preset(int i, char **name, game_params **params)
 {
-    if (i < 0 || i >= lenof(presets)) return FALSE;
+    game_params *ret;
 
-    *name = nfmtstr(40, "%d x %d", presets[i].w, presets[i].h);
-    *params = dup_params(&presets[i]);
+    if (i < 0 || i >= lenof(range_presets)) return FALSE;
+
+    ret = default_params();
+    *ret = range_presets[i]; /* struct copy */
+    *params = ret;
+
+    *name = nfmtstr(40, "%d x %d", range_presets[i].w, range_presets[i].h);
 
     return TRUE;
 }
@@ -333,19 +338,19 @@ static move *solve_internal(game_state *state, move *base, int diff)
     return moves;
 }
 
+static reasoning *const reasonings[] = {
+    solver_reasoning_not_too_big,
+    solver_reasoning_adjacency,
+    solver_reasoning_connectedness,
+    solver_reasoning_recursion
+};
+
 static move *do_solve(game_state *state,
                       int nclues,
                       const square *clues,
                       move *move_buffer,
                       int difficulty)
 {
-    reasoning *reasonings[] = {
-	solver_reasoning_not_too_big,
-	solver_reasoning_adjacency,
-	solver_reasoning_connectedness,
-	solver_reasoning_recursion
-    };
-
     struct move *buf = move_buffer, *oldbuf;
     int i;
 
@@ -1201,14 +1206,13 @@ static char *game_text_format(game_state *state)
 struct game_ui {
     puzzle_size r, c; /* cursor position */
     unsigned int cursor_show: 1;
-    unsigned int cheated: 1;
 };
 
 static game_ui *new_ui(game_state *state)
 {
     struct game_ui *ui = snew(game_ui);
     ui->r = ui->c = 0;
-    ui->cursor_show = ui->cheated = FALSE;
+    ui->cursor_show = FALSE;
     return ui;
 }
 
@@ -1219,12 +1223,11 @@ static void free_ui(game_ui *ui)
 
 static char *encode_ui(game_ui *ui)
 {
-    return dupstr(ui->cheated ? "1" : "0");
+    return NULL;
 }
 
 static void decode_ui(game_ui *ui, char *encoding)
 {
-    ui->cheated = (*encoding == '1');
 }
 
 typedef struct drawcell {
@@ -1325,7 +1328,14 @@ static char *interpret_move(game_state *state, game_ui *ui, game_drawstate *ds,
             ret = nfmtstr(40, "%c,%d,%d",
                           buf->colour == M_BLACK ? 'B' : 'W',
                           buf->square.r, buf->square.c);
-            ui->cheated = TRUE; /* you are being naughty ;-) */
+            /* We used to set a flag here in the game_ui indicating
+             * that the player had used the hint function. I (SGT)
+             * retired it, on grounds of consistency with other games
+             * (most of these games will still flash to indicate
+             * completion if you solved and undid it, so why not if
+             * you got a hint?) and because the flash is as much about
+             * checking you got it all right than about congratulating
+             * you on a job well done. */
         }
         sfree(buf);
         return ret;
@@ -1461,7 +1471,6 @@ failure:
 static void game_changed_state(game_ui *ui, game_state *oldstate,
                                game_state *newstate)
 {
-    if (newstate->has_cheated) ui->cheated = TRUE;
 }
 
 static float game_anim_length(game_state *oldstate, game_state *newstate,
@@ -1475,14 +1484,14 @@ static float game_anim_length(game_state *oldstate, game_state *newstate,
 static float game_flash_length(game_state *from, game_state *to,
                                int dir, game_ui *ui)
 {
-    if (!from->was_solved && to->was_solved && !ui->cheated)
+    if (!from->was_solved && to->was_solved && !to->has_cheated)
         return FLASH_TIME;
     return 0.0F;
 }
 
-static int game_is_solved(game_state *state)
+static int game_status(game_state *state)
 {
-    return state->was_solved;
+    return state->was_solved ? +1 : 0;
 }
 
 /* ----------------------------------------------------------------------
@@ -1732,7 +1741,7 @@ struct game const thegame = {
     game_redraw,
     game_anim_length,
     game_flash_length,
-    game_is_solved,
+    game_status,
     TRUE, FALSE, game_print_size, game_print,
     FALSE, /* wants_statusbar */
     FALSE, game_timing_state,
